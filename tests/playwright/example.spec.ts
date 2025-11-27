@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('loads dashboard and checks health', async ({ page }) => {
+test('loads landing page and checks content', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('HalfApp Dashboard')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'HalfApp' })).toBeVisible();
 });
