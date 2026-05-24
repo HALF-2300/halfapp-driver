@@ -1,0 +1,109 @@
+# HalfApp Driver — Staging Stack
+# Hosts: API + OSRM + nginx on one VPS.
+# Postgres is external (Neon managed).
+# Usage (on VPS, from repo):
+#   docker compose -f infra/staging/docker/docker-compose.yml \
+#     --env-file /etc/halfapp/staging.env up -d --build
+
+services:
+
+  api:
+    build:
+      context: ../../../backend
+      dockerfile: Dockerfile
+    image: halfapp/api:staging
+    container_name: halfapp-api
+    restart: unless-stopped
+    env_file:
+      - /etc/halfapp/staging.env
+    environment:
+      - OSRM_BASE_URL=http://osrm-routed:5000
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - halfapp-staging
+    depends_on:
+      osrm-routed:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  osrm-routed:
+    image: osrm/osrm-backend:v5.27.1
+    container_name: halfapp-osrm
+    restart: unless-stopped
+    command: >
+      osrm-routed
+      --algorithm mld
+      --max-matching-size 100
+      --max-table-size 500
+      /data/oregon-latest.osrm
+    volumes:
+      - osrm-data:/data:ro
+    ports:
+      - "127.0.0.1:5000:5000"
+    networks:
+      - halfapp-staging
+    healthcheck:
+      test:
+        - "CMD"
+        - "wget"
+        - "-q"
+        - "--spider"
+        - "http://localhost:5000/route/v1/driving/-122.6765,45.5152;-122.5968,45.5887?overview=false"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: halfapp-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/halfapp.conf:/etc/nginx/conf.d/halfapp.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - ../nginx/dhparam.pem:/etc/nginx/dhparam.pem:ro
+    networks:
+      - halfapp-staging
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  osrm-data:
+    name: halfapp-osrm-data
+  letsencrypt:
+    name: halfapp-letsencrypt
+
+networks:
+  halfapp-staging:
+    name: halfapp-staging
+    driver: bridge

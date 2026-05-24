@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HalfApp Rider Stub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <main class="mx-auto max-w-xl px-4 py-6">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-2xl">
+        <p class="text-xs uppercase tracking-[0.14em] text-cyan-300">HalfApp rider stub</p>
+        <h1 class="mt-1 text-2xl font-semibold">Two-sided demo request screen</h1>
+        <p class="mt-1 text-sm text-slate-400">Demo geocoding powered by Nominatim (public API).</p>
+
+        <div class="mt-4 space-y-3">
+          <label class="block text-xs text-slate-400">API base URL</label>
+          <input id="apiBase" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
+          <label class="block text-xs text-slate-400">Rider bearer token</label>
+          <input id="token" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
+          <label class="block text-xs text-slate-400">Rider name (optional)</label>
+          <input id="name" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm" placeholder="Demo Rider" />
+        </div>
+
+        <div class="mt-4 space-y-3">
+          <input id="pickup" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm" placeholder="Pickup address (Portland, OR)" />
+          <input id="dropoff" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm" placeholder="Dropoff address" />
+          <button id="requestRide" class="w-full rounded-xl bg-cyan-500 px-4 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-60">
+            Request Ride
+          </button>
+        </div>
+
+        <div id="statusPanel" class="mt-4 hidden rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-3">
+          <p class="text-xs uppercase tracking-wide text-cyan-300">Ride status</p>
+          <p id="statusText" class="mt-1 text-lg font-semibold">requested</p>
+          <p id="rideMeta" class="mt-1 text-sm text-slate-300"></p>
+          <p id="fareText" class="mt-2 text-sm font-medium text-emerald-300"></p>
+          <p id="channelText" class="mt-2 text-xs text-slate-400"></p>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const qs = new URLSearchParams(window.location.search)
+      const apiBaseEl = document.getElementById('apiBase')
+      const tokenEl = document.getElementById('token')
+      const nameEl = document.getElementById('name')
+      const pickupEl = document.getElementById('pickup')
+      const dropoffEl = document.getElementById('dropoff')
+      const requestBtn = document.getElementById('requestRide')
+      const statusPanel = document.getElementById('statusPanel')
+      const statusText = document.getElementById('statusText')
+      const rideMeta = document.getElementById('rideMeta')
+      const fareText = document.getElementById('fareText')
+      const channelText = document.getElementById('channelText')
+
+      apiBaseEl.value = localStorage.getItem('rider_stub_api_base') || qs.get('apiBase') || 'http://127.0.0.1:8000'
+      tokenEl.value = localStorage.getItem('rider_stub_token') || qs.get('token') || ''
+      nameEl.value = localStorage.getItem('rider_stub_name') || 'Demo Rider'
+
+      let pollTimer = null
+      let stream = null
+
+      function setStatus(status, ride) {
+        statusPanel.classList.remove('hidden')
+        statusText.textContent = status
+        rideMeta.textContent = `Ride #${ride?.id ?? '—'}`
+        const payoutCents = ride?.pricing?.driver_payout_cents
+        if (status === 'completed' && Number.isFinite(Number(payoutCents))) {
+          fareText.textContent = `Ride complete • Driver payout $${(Number(payoutCents) / 100).toFixed(2)}`
+        } else if (status === 'completed') {
+          fareText.textContent = 'Ride complete'
+        } else {
+          fareText.textContent = ''
+        }
+      }
+
+      async function geocodeAddress(query) {
+        const url = new URL('https://nominatim.openstreetmap.org/search')
+        url.searchParams.set('q', query)
+        url.searchParams.set('format', 'jsonv2')
+        url.searchParams.set('limit', '1')
+        const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
+        if (!res.ok) throw new Error(`Geocoding failed (${res.status})`)
+        const data = await res.json()
+        if (!Array.isArray(data) || !data[0]) throw new Error(`Address not found: ${query}`)
+        return { lat: Number(data[0].lat), lng: Number(data[0].lon), label: data[0].display_name || query }
+      }
+
+      async function fetchRide(rideId, token) {
+        const res = await fetch(`${apiBaseEl.value}/rides/${rideId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) throw new Error(`Ride status fetch failed (${res.status})`)
+        return (await res.json()).ride
+      }
+
+      function startPolling(rideId, token) {
+        if (pollTimer) window.clearInterval(pollTimer)
+        channelText.textContent = 'Live channel: polling fallback'
+        pollTimer = window.setInterval(async () => {
+          try {
+            const ride = await fetchRide(rideId, token)
+            setStatus(ride.status, ride)
+            if (ride.status === 'completed' || ride.status === 'cancelled') {
+              window.clearInterval(pollTimer)
+              pollTimer = null
+            }
+          } catch (error) {
+            channelText.textContent = `Polling error: ${error.message}`
+          }
+        }, 3000)
+      }
+
+      function startSSE(rideId, token) {
+        if (stream) stream.close()
+        try {
+          stream = new EventSource(`${apiBaseEl.value}/rides/${rideId}/stream?access_token=${encodeURIComponent(token)}`)
+          channelText.textContent = 'Live channel: SSE stream'
+          stream.onmessage = async (event) => {
+            const payload = JSON.parse(event.data)
+            statusText.textContent = payload.status
+            const ride = await fetchRide(rideId, token)
+            setStatus(payload.status, ride)
+            if (payload.status === 'completed' || payload.status === 'cancelled') {
+              stream.close()
+              stream = null
+            }
+          }
+          stream.onerror = () => {
+            if (stream) stream.close()
+            stream = null
+            startPolling(rideId, token)
+          }
+        } catch {
+          startPolling(rideId, token)
+        }
+      }
+
+      requestBtn.addEventListener('click', async () => {
+        requestBtn.disabled = true
+        requestBtn.textContent = 'Requesting…'
+        fareText.textContent = ''
+        try {
+          const token = tokenEl.value.trim()
+          if (!token) throw new Error('Rider token is required')
+          if (!pickupEl.value.trim() || !dropoffEl.value.trim()) throw new Error('Both addresses are required')
+
+          localStorage.setItem('rider_stub_api_base', apiBaseEl.value.trim())
+          localStorage.setItem('rider_stub_token', token)
+          localStorage.setItem('rider_stub_name', nameEl.value.trim())
+
+          const [pickup, dropoff] = await Promise.all([
+            geocodeAddress(`${pickupEl.value.trim()}, Portland, OR`),
+            geocodeAddress(`${dropoffEl.value.trim()}, Portland, OR`),
+          ])
+          const body = {
+            customer_name: nameEl.value.trim() || 'Demo Rider',
+            pickup_location: pickup.label,
+            dropoff_location: dropoff.label,
+            pickup_latitude: pickup.lat,
+            pickup_longitude: pickup.lng,
+            dropoff_latitude: dropoff.lat,
+            dropoff_longitude: dropoff.lng,
+          }
+          const createRes = await fetch(`${apiBaseEl.value.trim()}/rides/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          })
+          if (!createRes.ok) {
+            const errText = await createRes.text()
+            throw new Error(`Ride request failed (${createRes.status}): ${errText}`)
+          }
+          const created = await createRes.json()
+          const ride = created.ride
+          setStatus(ride.status, ride)
+          startSSE(ride.id, token)
+        } catch (error) {
+          alert(error.message)
+        } finally {
+          requestBtn.disabled = false
+          requestBtn.textContent = 'Request Ride'
+        }
+      })
+    </script>
+  </body>
+</html>

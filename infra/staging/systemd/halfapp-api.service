@@ -1,0 +1,26 @@
+# Optional host-native API (when not running the api service via Docker Compose).
+# Primary staging path uses: docker compose -f infra/staging/docker-compose.yml up -d api
+#
+# Install:
+#   sudo cp infra/staging/systemd/halfapp-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now halfapp-api
+
+[Unit]
+Description=HalfApp API (staging host fallback)
+Documentation=file:///opt/halfapp-driver/infra/staging/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=halfapp
+Group=halfapp
+WorkingDirectory=/opt/halfapp-driver/backend
+EnvironmentFile=/etc/halfapp/staging.env
+ExecStart=/opt/halfapp-driver/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --log-level info
+Restart=unless-stopped
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

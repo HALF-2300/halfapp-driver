@@ -1,0 +1,22 @@
+# Self-hosted OSRM for Portland metro proof (Oregon OSM extract).
+# One-time data prep — see README.md in this folder.
+services:
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: halfapp-osrm-portland
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/data
+    command: osrm-routed --algorithm mld /data/oregon-latest.osrm
+    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'curl -fsS "http://127.0.0.1:5000/route/v1/driving/-122.5951,45.5898;-122.6784,45.5152?overview=false&steps=false" | grep -q "\"code\":\"Ok\""',
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s

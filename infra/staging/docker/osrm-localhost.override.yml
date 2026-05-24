@@ -1,0 +1,7 @@
+# Use from repo root on the VPS:
+#   docker compose -f docker/osrm-portland/docker-compose.yml \
+#     -f infra/staging/docker/osrm-localhost.override.yml up -d
+services:
+  osrm:
+    ports:
+      - "127.0.0.1:5000:5000"

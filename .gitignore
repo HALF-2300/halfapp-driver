@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+/env/
+!infra/staging/env/
+!infra/staging/env/staging.env.template
+
+# Node
+node_modules/
+driver-app/node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+driver-app/dist/
+frontend/dist/
+coverage/
+playwright-report/
+test-results/
+driver-app/tests/.auth/
+
+# Local databases and generated artifacts
+*.db
+*.db-journal
+backend/ci_drift_check.db
+backend/openapi_driver_snippet.json
+backend/runtime_evidence/*.json
+!backend/runtime_evidence/.gitkeep
+
+# OSRM Oregon extract (large; build on host)
+docker/osrm-portland/data/*
+!docker/osrm-portland/data/.gitkeep
+
+# Staging VPS secrets
+infra/staging/staging.env
+infra/staging/env/staging.env.local
+infra/staging/.last-provision.json
+infra/staging/.ssh/
+docs/OSRM_RUNTIME_PROOF_V0_2_EVIDENCE.txt
+
+# Staging infra (local provision metadata)
+infra/staging/.last-provision.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/

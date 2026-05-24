@@ -1,0 +1,8 @@
+# Merge into ~/.ssh/config or: Include /absolute/path/to/halfapp-driver/infra/staging/ssh_config
+# After provision: HostName is replaced with VPS_IP from staging.env
+Host staging halfapp-staging
+    HostName 0.0.0.0
+    User halfapp
+    IdentityFile ~/.ssh/halfapp_staging_ed25519
+    IdentitiesOnly yes
+    ServerAliveInterval 60

@@ -1,0 +1,111 @@
+name: HalfApp Driver CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  truth-and-drift:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: driver-app/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: driver-app
+        run: npm ci
+
+      - name: Validate prod truth gates
+        working-directory: driver-app
+        run: npm run build
+
+      - name: Verify unsafe mock flag is rejected
+        working-directory: driver-app
+        run: |
+          VITE_ALLOW_OFFLINE_MOCK=true node scripts/assert-prod-truth.mjs && exit 1 || exit 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+
+      - name: Run backend tests
+        env:
+          DATABASE_URL: sqlite:///./backend/ci_test.db
+          PYTHONPATH: backend
+          HALFAPP_DOSSIER_SPINE_ENABLED: "1"
+        run: python -m pytest backend/tests
+
+  postgres-claim-race:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: halfapp
+          POSTGRES_PASSWORD: halfapp
+          POSTGRES_DB: halfapp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U halfapp -d halfapp_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+
+      - name: Run Postgres claim race proof
+        env:
+          DATABASE_URL: postgresql+psycopg2://halfapp:halfapp@localhost:5432/halfapp_test
+          PYTHONPATH: backend
+          SECRET_KEY: pytest-postgres-claim-race-secret-32chars-min
+          HALFAPP_ENV: test
+          HALFAPP_ENABLE_RIDE_SIMULATION: "1"
+          ALLOW_TEST_USER_SEED: "true"
+          HALFAPP_DOSSIER_SPINE_ENABLED: "0"
+        run: python -m pytest backend/tests/test_postgres_claim_race_proof_01.py -q
+
+      - name: Run Alembic drift check
+        working-directory: backend
+        env:
+          DATABASE_URL: sqlite:///./ci_drift_check.db
+        run: |
+          before="$(mktemp)"
+          find alembic/versions -maxdepth 1 -name "*.py" | sort > "$before"
+
+          alembic upgrade head
+          alembic revision --autogenerate -m "ci drift check"
+          FILE=$(comm -13 "$before" <(find alembic/versions -maxdepth 1 -name "*.py" | sort) | head -n 1)
+
+          if [ -z "$FILE" ]; then
+            echo "No schema drift detected."
+            exit 0
+          fi
+
+          if grep -q "op\." "$FILE"; then
+            echo "Schema drift detected. Commit a migration."
+            cat "$FILE"
+            exit 1
+          fi
+
+          rm "$FILE"

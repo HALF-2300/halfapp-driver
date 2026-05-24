@@ -1,0 +1,40 @@
+{
+  "name": "halfapp-driver-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node scripts/assert-prod-truth.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/unit/**/*.test.js && node scripts/assert-no-ai-providers.mjs && node scripts/assert-no-money-claims.mjs",
+    "assert:no-money-claims": "node scripts/assert-no-money-claims.mjs",
+    "test:e2e": "playwright test",
+    "pretest:e2e:cockpit": "node scripts/ensure-playwright-port-free.mjs",
+    "test:e2e:cockpit": "playwright test tests/smoke-mvp.spec.ts tests/cockpit-identity.spec.ts tests/map-cockpit-truth.spec.ts tests/cockpit-real-product.spec.ts",
+    "test:e2e:trust": "playwright test -c playwright.trust.config.js",
+    "pretest:e2e:ride-flow": "node scripts/ensure-ride-flow-ports-free.mjs",
+    "test:e2e:ride-flow": "playwright test -c playwright.ride-flow.config.js",
+    "pretest:e2e:audit-flow": "node scripts/ensure-audit-flow-ports-free.mjs",
+    "test:e2e:audit-flow": "playwright test -c playwright.audit-flow.config.js",
+    "pretest:e2e:route-truth-flow": "node scripts/ensure-route-truth-flow-ports-free.mjs",
+    "test:e2e:route-truth-flow": "playwright test -c playwright.route-truth-flow.config.js"
+  },
+  "dependencies": {
+    "framer-motion": "^12.40.0",
+    "leaflet": "^1.9.4",
+    "leaflet.heat": "^0.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vite": "^7.2.2"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "shotId": "test_shot_003",
+  "promptText": "test",
+  "controlVideoPath": null,
+  "status": "APPROVED",
+  "generationAttempts": 0,
+  "candidates": [],
+  "currentCfgScale": 6.0,
+  "currentControlStrength": 1.0,
+  "verifiedArtifact": {
+    "artifactHash": "ddd",
+    "artifactPath": "C:\\Users\\him\\AppData\\Local\\Temp\\pytest-of-him\\pytest-13\\test_accepts_warn_if_no_approv0\\promoted\\candidate_w.mp4",
+    "promotedAt": "2026-05-18T14:04:17.192067+00:00",
+    "gateDecision": "WARN_REVIEW_REQUIRED"
+  },
+  "createdAt": "2026-05-18T14:04:17.188541+00:00",
+  "updatedAt": "2026-05-18T14:04:17.192067+00:00"
+}

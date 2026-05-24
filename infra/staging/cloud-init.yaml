@@ -1,0 +1,87 @@
+#cloud-config
+# HalfApp staging VPS bootstrap — applied at first boot via Hetzner/DigitalOcean user_data.
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - ufw
+  - nginx
+  - certbot
+  - python3-certbot-nginx
+  - fail2ban
+
+groups:
+  - docker
+
+users:
+  - default
+  - name: halfapp
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - __HALFAPP_SSH_PUBLIC_KEY__
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-halfapp-hardening.conf
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      ChallengeResponseAuthentication no
+      PermitRootLogin prohibit-password
+      PubkeyAuthentication yes
+      MaxAuthTries 3
+      ClientAliveInterval 300
+      ClientAliveCountMax 2
+  - path: /etc/nginx/sites-available/halfapp-staging
+    content: |
+      # OSRM is localhost-only; optional reverse proxy for health checks from outside.
+      # Uncomment location /osrm/ after TLS is configured.
+      server {
+          listen 80 default_server;
+          listen [::]:80 default_server;
+          server_name _;
+          location /health {
+              return 200 'ok';
+              add_header Content-Type text/plain;
+          }
+          # location /osrm/ {
+          #     proxy_pass http://127.0.0.1:5000/;
+          #     proxy_http_version 1.1;
+          #     proxy_set_header Host $host;
+          # }
+      }
+  - path: /opt/halfapp/docker-compose.osrm.override.yml
+    content: |
+      services:
+        osrm:
+          ports:
+            - "127.0.0.1:5000:5000"
+
+runcmd:
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  - |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+  - usermod -aG docker halfapp
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp comment 'SSH'
+  - ufw allow 80/tcp comment 'HTTP'
+  - ufw allow 443/tcp comment 'HTTPS'
+  - ufw --force enable
+  - ln -sf /etc/nginx/sites-available/halfapp-staging /etc/nginx/sites-enabled/halfapp-staging
+  - rm -f /etc/nginx/sites-enabled/default
+  - nginx -t && systemctl enable --now nginx
+  - systemctl restart ssh
+  - systemctl enable --now fail2ban
+  - mkdir -p /opt/halfapp
+  - chown -R halfapp:halfapp /opt/halfapp
+
+final_message: "HalfApp staging bootstrap complete after $UPTIME seconds"

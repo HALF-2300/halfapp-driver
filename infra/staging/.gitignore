@@ -1,0 +1,9 @@
+# Local secrets — never commit
+env/staging.env.local
+.ssh/
+*.pem
+provision.log
+.last-provision.json
+
+# Legacy local env (prefer env/staging.env.local)
+staging.env

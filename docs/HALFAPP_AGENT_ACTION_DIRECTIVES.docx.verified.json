@@ -1,0 +1,23 @@
+{
+  "document": "HALFAPP_AGENT_ACTION_DIRECTIVES.docx",
+  "status": "verified",
+  "verified_at": "2026-05-22",
+  "generator": "python-docx via docs/build_directives_docx.py",
+  "render_method": "mammoth HTML preview -> Playwright Chromium PDF (Letter, 1in margins) -> PyMuPDF page PNGs",
+  "structural_checks": {
+    "headings_match_source_markdown": true,
+    "heading_count": 17,
+    "bullet_count": 117,
+    "tables_in_docx": false,
+    "source_markdown": "HALFAPP_AGENT_ACTION_DIRECTIVES.md"
+  },
+  "visual_checks": {
+    "headings_clean": true,
+    "tables_readable": true,
+    "no_clipped_text": true,
+    "no_broken_spacing": true,
+    "no_page_overflow": true,
+    "no_missing_sections": true
+  },
+  "render_artifacts": "docs/.verify/preview.pdf, docs/.verify/pdf-page-*.png"
+}

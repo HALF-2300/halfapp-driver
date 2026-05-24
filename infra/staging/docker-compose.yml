@@ -1,0 +1,93 @@
+# Staging stack: API + OSRM + nginx (Postgres on Neon).
+# Run from repo root: docker compose -f infra/staging/docker-compose.yml up -d
+name: halfapp-staging
+
+services:
+  osrm-routed:
+    image: osrm/osrm-backend:latest
+    container_name: halfapp-staging-osrm
+    command: osrm-routed --algorithm mld /data/oregon-latest.osrm
+    volumes:
+      - osrm-data:/data:ro
+    ports:
+      - "127.0.0.1:5000:5000"
+    networks:
+      - halfapp-staging
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'wget -qO- "http://127.0.0.1:5000/route/v1/driving/-122.5951,45.5898;-122.6784,45.5152?overview=false&steps=false" | grep -q "\"code\":\"Ok\""',
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  api:
+    build:
+      context: ../../backend
+      dockerfile: ../infra/staging/docker/Dockerfile.api
+    container_name: halfapp-staging-api
+    env_file:
+      - ${HALFAPP_STAGING_ENV_FILE:-/etc/halfapp/staging.env}
+    environment:
+      HALFAPP_ENV: ${HALFAPP_ENV:-production}
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - halfapp-staging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: halfapp-staging-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/halfapp.conf:/etc/nginx/conf.d/halfapp.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    networks:
+      - halfapp-staging
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      osrm-routed:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1/health >/dev/null 2>&1 || wget -qO- http://127.0.0.1:80/health >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+networks:
+  halfapp-staging:
+    name: halfapp-staging
+    driver: bridge
+
+volumes:
+  osrm-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${OSRM_DATA_DIR:-../../docker/osrm-portland/data}
+  letsencrypt:
+    name: halfapp-staging-letsencrypt
+  certbot-www:
+    name: halfapp-staging-certbot-www
