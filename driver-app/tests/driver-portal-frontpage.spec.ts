@@ -97,8 +97,7 @@ test.describe('Driver Portal public face', () => {
         body: JSON.stringify({ detail: 'Invalid token' }),
       })
     })
-    await page.goto('/#/')
-    await page.evaluate(() => {
+    await page.addInitScript(() => {
       try {
         localStorage.setItem('driver_token', 'expired-real-token')
         localStorage.setItem('driver_role', 'driver')
