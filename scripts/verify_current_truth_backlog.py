@@ -57,7 +57,7 @@ def main() -> int:
     ):
         _require(truth, needle, f"CURRENT_TRUTH.md/{needle}")
 
-    _require(truth, "No payment processing", "CURRENT_TRUTH.md/payment boundary")
+    _require(truth, "No payout-to-bank product claims", "CURRENT_TRUTH.md/payment boundary")
 
     print("verify_current_truth_backlog: OK")
     return 0
