@@ -61,9 +61,9 @@ export const BETA_COCKPIT_BANNER_BODY =
 
 export const BETA_INCOMING_RIDE_EYEBROW = 'Incoming job · open board'
 
-export const BETA_INCOMING_ESTIMATE_LABEL = 'Est. test earnings'
+export const BETA_INCOMING_ESTIMATE_LABEL = 'Recorded obligation'
 
-export const BETA_INCOMING_ESTIMATE_HINT = '(not paid)'
+export const BETA_INCOMING_ESTIMATE_HINT = 'Pending review · not paid out'
 
 export const BETA_COMPLETED_TRIP_NOTE = BETA_OBLIGATION_DETAIL
 
@@ -81,7 +81,7 @@ export const BETA_PAYMENT_AVAILABLE_LABEL = 'Net processed (after refunds & disp
 /** Provider Connect payout status (Phase 5) — status from Stripe, not bank confirmation. */
 export const BETA_PAYOUT_VISIBILITY_TITLE = 'Provider payout status'
 
-export const BETA_PAYOUT_PAID_LABEL = 'Provider payout (paid status)'
+export const BETA_PAYOUT_PAID_LABEL = 'Provider payout completed status'
 
 export const BETA_PAYOUT_PENDING_LABEL = 'Provider payout (pending / in transit)'
 
@@ -159,7 +159,6 @@ export const BETA_FORBIDDEN_PAYMENT_ALLOWLIST = [
   'not paid.',
   'do not interpret them as paid out',
   'provider payout',
-  'paid status',
   'pending / in transit',
   'not confirmation that funds reached your bank',
   'failed payouts (provider status)',

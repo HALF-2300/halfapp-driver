@@ -2408,12 +2408,15 @@ def get_driver_profile(
         "email": driver_user.email,
         "name": driver_user.name,
         "role": role_value,
+        "license_no": driver_user.license_no,
         "approval_status": approval_status,
         "vehicle": {
             "make": _vehicle_field(driver_user.vehicle_make),
             "model": _vehicle_field(driver_user.vehicle_model),
             "plate": _vehicle_field(driver_user.license_plate),
         },
+        "insurance_policy": driver_user.insurance_policy,
+        "insurance_expires_at": None,
         "read_only": True,
     }
 

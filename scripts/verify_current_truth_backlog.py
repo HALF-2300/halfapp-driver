@@ -52,7 +52,7 @@ def main() -> int:
         "PARALLEL_NOT_WIRED",
         "LOCAL_CONTEXT_ONLY",
         "NOT IMPLEMENTED",
-        "253+ passed",
+        "383 passed, 9 skipped",
         "HALFAPP_COMPREHENSIVE_PROGRAM_REPORT_03",
     ):
         _require(truth, needle, f"CURRENT_TRUTH.md/{needle}")

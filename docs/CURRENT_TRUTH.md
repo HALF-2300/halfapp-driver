@@ -70,6 +70,7 @@ Reconciled backlog: `docs/BACKLOG.md`.
 | **Engineering Intelligence Safe Shell** | **GO — LOCAL_CONTEXT_ONLY** | `#/engineering-intelligence`; `tests/test_engineering_intelligence_status.py` |
 | **Ride product AI/LLM inference** | **NOT IMPLEMENTED** | No model inference on dispatch/pricing/lifecycle |
 | **Backend test gate** | **GO** | `py -3.11 -m pytest -q --tb=no` — 383 passed, 9 skipped (SQLite dev, 2026-05-25); `docs/BACKEND_PYTEST_DRIFT_CLOSURE_01.md` |
+| **Driver closed-beta readiness flow** | **GO** | DriverReadinessV1 + online gate + ride offer states + completion receipt; `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`; `npm test` 158 passed; `npm run build` passed |
 | **Ride-flow UI proof** | **GO** | `docs/RIDE_FLOW_UI_PROOF_V0_2_STATUS.md` |
 | **Two-sided loop (code)** | **SHIPPED** | `docs/HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md` Phases 1–4 |
 | **Stable car API spine** | **GO** | `tests/test_stable_car_p0_01.py`, `scripts/owner_runbook_verify.py` |
@@ -111,6 +112,8 @@ Do not modify claim-lock, lifecycle guards, approval gates, cascade logic, or pr
 **P0 (close gates):** G1 local PG proof · G2 `prove_osrm_runtime.py` exit 0 · G3 owner fills `OWNER_COURIER_DAY_REPORT_01.md` · G4 owner picks Path A or B
 
 **P1 (blocked until P0 GO):** Push (web) · stale presence policy · session E2E re-run
+
+**Driver App Real-App Shaping Pass:** **GO** — `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`; DriverReadinessV1 gates go-online for profile/vehicle/docs/insurance/backend/manual approval blockers; ride offer states include expired/conflict; completion receipt states recorded obligation + payout not executed; `npm test` 158 passed; `npm run build` passed
 
 **P1.3 Delivery vocabulary pass (extended):** **GO** — `docs/P1_3_DELIVERY_VOCABULARY_PASS_01.md`; extended to MapHome, DriverSettings, TripAuditReceipt, cockpit components (MarketplaceBottomSheet, DiagnosticsDrawer, RideChatPanel, EarningsVisibilityPanel, StreetIntelligencePanel); 150 npm tests pass; guards clean
 

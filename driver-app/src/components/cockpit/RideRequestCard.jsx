@@ -21,6 +21,12 @@ function MetaRow({ label, value }) {
   )
 }
 
+function areaFromLabel(label) {
+  const text = String(label || '').trim()
+  if (!text) return 'Area not provided'
+  return text.split(',')[0].trim() || text
+}
+
 function secondsRemaining(expiresAtIso, timeoutSeconds) {
   if (!expiresAtIso) return timeoutSeconds ?? 30
   const end = new Date(expiresAtIso).getTime()
@@ -63,6 +69,7 @@ export default function RideRequestCard({
 
   const pickupLabel = ride?.pickup?.label || ride?.pickupLocation || 'Pickup'
   const dropoffLabel = ride?.dropoff?.label || ride?.dropoffLocation || 'Dropoff'
+  const expired = remaining === 0
   const countdownClass =
     remaining <= 8 ? 'ride-request-card__countdown ride-request-card__countdown--urgent' : 'ride-request-card__countdown'
 
@@ -75,7 +82,7 @@ export default function RideRequestCard({
           data-testid="ride-request-countdown"
           aria-live="polite"
         >
-          {remaining}s
+          {expired ? 'Expired' : `${remaining}s`}
         </div>
       </div>
 
@@ -84,6 +91,9 @@ export default function RideRequestCard({
           <p className="text-[11px] uppercase tracking-wide text-[#AAB6C8]">Pickup</p>
           <p className="text-[18px] font-semibold leading-snug text-[#F8FAFC]" data-testid="ride-request-pickup">
             {pickupLabel}
+          </p>
+          <p className="mt-1 text-[12px] text-[#94A3B8]" data-testid="ride-request-pickup-area">
+            Pickup area: {areaFromLabel(pickupLabel)}
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -109,13 +119,17 @@ export default function RideRequestCard({
       <p className="text-[15px] font-medium text-[#F8FAFC]" data-testid="ride-request-dropoff">
         {dropoffLabel}
       </p>
+      <p className="mt-1 text-[12px] text-[#94A3B8]" data-testid="ride-request-dropoff-area">
+        Dropoff area: {areaFromLabel(dropoffLabel)}
+      </p>
 
       <div className="mt-3 rounded-[18px] border border-white/10 bg-white/[0.04] p-3 space-y-2">
         <MetaRow
-          label="Distance"
+          label="Estimated distance"
           value={formatDistanceKm(Number(ride?.distance ?? 0), units)}
         />
-        <MetaRow label="Duration" value={`${ride?.duration ?? 0} min`} />
+        <MetaRow label="Estimated time" value={`${ride?.duration ?? 0} min`} />
+        <MetaRow label="Payment status" value="Manual operations required" />
       </div>
 
       <div className="mt-3">
@@ -125,22 +139,32 @@ export default function RideRequestCard({
       <div className="mt-4 grid grid-cols-2 gap-3">
         <PrimaryRideActionButton
           onClick={() => onDecline?.({ reason: 'driver_declined' })}
-          disabled={loadingBackend || claimConflict}
+          disabled={loadingBackend || claimConflict || expired}
           tone="neutral"
           testId="decline-ride-btn"
         >
-          Decline
+          {expired ? 'Expired' : 'Decline'}
         </PrimaryRideActionButton>
         <PrimaryRideActionButton
           onClick={onAccept}
-          disabled={loadingBackend || claimConflict}
+          disabled={loadingBackend || claimConflict || expired}
           tone="success"
           testId="accept-ride-btn"
         >
-          Accept
+          {expired ? 'Offer expired' : 'Accept'}
         </PrimaryRideActionButton>
       </div>
 
+      {expired && (
+        <p className="mt-2 text-center text-[12px] text-amber-300" data-testid="ride-offer-expired">
+          Offer expired. Syncing the open board.
+        </p>
+      )}
+      {claimConflict && (
+        <p className="mt-2 text-center text-[12px] text-amber-300" data-testid="ride-offer-conflict">
+          Another driver already took this job.
+        </p>
+      )}
       {backendError && (
         <p className="mt-2 text-center text-[12px] text-amber-300" data-testid="accept-ride-error">
           {backendError}

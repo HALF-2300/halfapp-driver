@@ -14,6 +14,8 @@ import EarningsVisibilityPanel from '../EarningsVisibilityPanel.jsx'
 import RideChatPanel from './RideChatPanel.jsx'
 import RideNavigationPanel from './RideNavigationPanel.jsx'
 import RideAiDispatchPanel from './RideAiDispatchPanel.jsx'
+import DriverReadinessCard from './DriverReadinessCard.jsx'
+import CompletionReceiptCard from './CompletionReceiptCard.jsx'
 
 function cockpitBackendState(state) {
   if (state === DRIVER_STATES.ACCEPTED_TO_PICKUP) return 'accepted'
@@ -81,6 +83,8 @@ export default function MarketplaceBottomSheet(props) {
     lastCompletedRide,
     onDismissCompletedSummary,
     rideAi,
+    readiness,
+    onReadinessAction,
   } = props
 
   const [expanded, setExpanded] = useState(false)
@@ -102,16 +106,25 @@ export default function MarketplaceBottomSheet(props) {
   if (state === DRIVER_STATES.OFFLINE) {
     content = (
       <div data-testid="sheet-offline">
-        <DriverActionSheet
-          statusLabel="Offline"
-          statusTone="text-slate-400"
-          headline="Go online to start receiving requests."
-          action={
-            <PrimaryRideActionButton onClick={goOnline} tone="success" testId="go-online-btn">
-              Go online
-            </PrimaryRideActionButton>
-          }
-        />
+        {readiness && !readiness.canGoOnline ? (
+          <DriverReadinessCard
+            readiness={readiness}
+            loading={loadingBackend}
+            onAction={onReadinessAction}
+          />
+        ) : (
+          <DriverActionSheet
+            statusLabel="Ready to go online"
+            statusTone="text-emerald-300/90"
+            headline="Ready check complete."
+            body="Go online when you are ready to receive closed-beta jobs."
+            action={
+              <PrimaryRideActionButton onClick={goOnline} tone="success" testId="go-online-btn">
+                Go online
+              </PrimaryRideActionButton>
+            }
+          />
+        )}
         {backendError && (
           <p className="mt-2 text-[11px] text-amber-300 text-center" data-testid="accept-ride-error">
             {backendError}
@@ -133,6 +146,11 @@ export default function MarketplaceBottomSheet(props) {
             <div className="flex flex-wrap items-center gap-2 px-1">
               <TestRideLabel lifecycleReason={lastCompletedRide?.raw?.lifecycle_reason} />
             </div>
+            <CompletionReceiptCard
+              ride={lastCompletedRide}
+              amount={lastCompletedRide.fareAmount}
+              onDismiss={onDismissCompletedSummary}
+            />
             <p className="text-[10px] text-[var(--ha-muted)]/80 px-1" data-testid="completed-trip-beta-note">
               {BETA_COMPLETED_TRIP_NOTE}
             </p>
@@ -168,7 +186,7 @@ export default function MarketplaceBottomSheet(props) {
           </>
         )}
         <DriverActionSheet
-          statusLabel="Available"
+          statusLabel="Online and waiting"
           statusTone="text-emerald-300/90"
           headline="Waiting for requests nearby."
           synced={presenceSynced}
@@ -202,7 +220,7 @@ export default function MarketplaceBottomSheet(props) {
         {expanded && (
           <>
             <DriverAvailabilityCard
-              title="Available"
+              title="Online and waiting"
               subtitle="Waiting for requests nearby."
               todayTrips={summary.todayTrips}
               totalTrips={summary.totalTrips}
@@ -271,10 +289,10 @@ export default function MarketplaceBottomSheet(props) {
   ) {
     const headline =
       state === DRIVER_STATES.ACCEPTED_TO_PICKUP
-        ? 'Heading to pickup'
+        ? 'Ride accepted'
         : state === DRIVER_STATES.ARRIVED_PICKUP
-          ? 'At pickup'
-          : 'In progress'
+          ? 'Arriving to pickup'
+          : 'In trip'
     const subhead = state === DRIVER_STATES.IN_PROGRESS ? ride.dropoff.label : ride.pickup.label
     const buttonTone = state === DRIVER_STATES.IN_PROGRESS ? 'success' : 'primary'
     const backendCockpitState = cockpitBackendState(state)
@@ -292,10 +310,11 @@ export default function MarketplaceBottomSheet(props) {
             <p className="truncate text-[13px] text-[var(--ha-muted)]">→ {subhead}</p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-[10px] uppercase tracking-wide text-[var(--ha-muted)]">Est. payout</p>
+            <p className="text-[10px] uppercase tracking-wide text-[var(--ha-muted)]">Recorded obligation</p>
             <p className="text-[20px] font-bold" data-testid="ride-active-payout">
               {ride.fareAmount == null ? 'Pending' : formatCurrency(ride.fareAmount)}
             </p>
+            <p className="text-[10px] text-[var(--ha-muted)]">Payout not executed</p>
           </div>
         </div>
         <ExternalNavigationButtons pickup={ride.pickup} dropoff={ride.dropoff} />
@@ -348,10 +367,20 @@ export default function MarketplaceBottomSheet(props) {
   } else {
     content = (
       <div className="space-y-3" data-testid="sheet-fallback">
-        <p className="text-[13px] text-[var(--ha-muted)]">Ready when you are.</p>
-        <PrimaryRideActionButton onClick={goOnline} tone="success" testId="go-online-btn">
-          Go online
-        </PrimaryRideActionButton>
+        {readiness && !readiness.canGoOnline ? (
+          <DriverReadinessCard
+            readiness={readiness}
+            loading={loadingBackend}
+            onAction={onReadinessAction}
+          />
+        ) : (
+          <>
+            <p className="text-[13px] text-[var(--ha-muted)]">Ready when you are.</p>
+            <PrimaryRideActionButton onClick={goOnline} tone="success" testId="go-online-btn">
+              Go online
+            </PrimaryRideActionButton>
+          </>
+        )}
       </div>
     )
   }

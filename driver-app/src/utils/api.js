@@ -473,11 +473,14 @@ class DriverAPI {
         name: rest.name,
         role: rest.role || 'driver',
         approval_status: 'pending',
+        license_no: rest.license_no || null,
         vehicle: {
           make: rest.vehicle_make || 'Not registered',
           model: rest.vehicle_model || 'Not registered',
           plate: rest.license_plate || 'Not registered',
         },
+        insurance_policy: rest.insurance_policy || null,
+        insurance_expires_at: rest.insurance_expires_at || null,
         read_only: true,
       }
     }

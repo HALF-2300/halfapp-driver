@@ -41,11 +41,12 @@ import { useActiveRide } from '../hooks/useActiveRide.js'
 import { useAiConnection } from '../hooks/useAiConnection.js'
 import { useRideAiDispatch } from '../hooks/useRideAiDispatch.js'
 import RideAiDispatchPanel from './cockpit/RideAiDispatchPanel.jsx'
-import { formatCurrency } from '../theme/halfAppTheme.js'
 import { driverPayoutDollars } from '../utils/ridePricingDisplay.js'
 import { isBackendClaimConflict } from '../utils/rideTransparency.js'
 import { useDriverPreferences } from '../context/DriverPreferencesContext.jsx'
 import { playOfferSound } from '../utils/sounds.js'
+import { buildDriverReadiness } from '../utils/driverReadiness.js'
+import CompletionReceiptCard from './cockpit/CompletionReceiptCard.jsx'
 
 const STATE_LABELS = {
   [DRIVER_STATES.OFFLINE]: { label: 'Offline', tone: 'bg-slate-700 text-slate-200' },
@@ -207,6 +208,9 @@ export default function MapHome() {
   const [conflictTransparencyUnavailable, setConflictTransparencyUnavailable] = useState(false)
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
   const [driverApproved, setDriverApproved] = useState(true)
+  const [driverReadiness, setDriverReadiness] = useState(() =>
+    buildDriverReadiness({ accountProfile: null, backendUnavailable: true })
+  )
   const [presenceStale, setPresenceStale] = useState(false)
   const [meStatusSnapshot, setMeStatusSnapshot] = useState(null)
   const flashTimer = useRef(null)
@@ -528,13 +532,22 @@ export default function MapHome() {
       setLoadingBackend(true)
       setBackendError(null)
       try {
+        let profileUnavailable = false
         const [meStatus, profile] = await Promise.all([
           driverAPI.getDriverMeStatus(),
-          driverAPI.getDriverSettingsProfile().catch(() => null),
+          driverAPI.getDriverSettingsProfile().catch(() => {
+            profileUnavailable = true
+            return null
+          }),
         ])
         if (cancelled) return
         setMeStatusSnapshot(meStatus)
-        const approved = String(profile?.approval_status || 'approved').toLowerCase() === 'approved'
+        const readiness = buildDriverReadiness({
+          accountProfile: profile,
+          backendUnavailable: profileUnavailable,
+        })
+        setDriverReadiness(readiness)
+        const approved = !readiness.blockers.some((item) => item.code === 'approval_required')
         setDriverApproved(approved)
         const backendStatus = statusFromDriverMe(meStatus)
         if (meStatus?.last_seen_at) {
@@ -600,8 +613,13 @@ export default function MapHome() {
   }, [status.online, activeRide, refetchActiveRide])
 
   const goOnline = useCallback(async () => {
-    if (!driverApproved) {
-      setBackendError('Account not approved — you cannot go online yet')
+    if (!driverReadiness.canGoOnline) {
+      const primary = driverReadiness.primaryBlocker
+      setBackendError(
+        primary
+          ? `You are not ready to go online yet. Reason: ${primary.label}. Action: ${primary.actionLabel}.`
+          : 'You are not ready to go online yet.'
+      )
       return
     }
     if (!canTransition(status.state, DRIVER_STATES.ONLINE_IDLE)) return
@@ -625,7 +643,7 @@ export default function MapHome() {
     } finally {
       setLoadingBackend(false)
     }
-  }, [refreshBackendTruth, status.state, clearConflictMemory, devicePosition, driverApproved])
+  }, [refreshBackendTruth, status.state, clearConflictMemory, devicePosition, driverReadiness])
 
   const goOffline = useCallback(async () => {
     if (activeRide) return
@@ -874,7 +892,14 @@ export default function MapHome() {
   const stateMeta = STATE_LABELS[status.state] ?? STATE_LABELS[DRIVER_STATES.OFFLINE]
   const isOnline = status.online && status.state !== DRIVER_STATES.OFFLINE
   const isAutoAssigned = activeRide?.raw?.lifecycle_reason === 'auto_assigned'
-  const onlineToggleDisabled = !driverApproved || (!!activeRide && isOnline)
+  const onlineToggleDisabled = (!driverReadiness.canGoOnline && !isOnline) || (!!activeRide && isOnline)
+  const handleReadinessAction = useCallback(() => {
+    if (driverReadiness.canGoOnline) {
+      goOnline()
+      return
+    }
+    navigate('/profile')
+  }, [driverReadiness.canGoOnline, goOnline, navigate])
 
   useEffect(() => {
     if (!activeRide || activeRide.status !== DRIVER_STATES.REQUEST_INCOMING) return
@@ -1023,7 +1048,7 @@ export default function MapHome() {
             compact={locationChipCompact}
           />
         </div>
-        {onlineToggleDisabled && (
+        {onlineToggleDisabled && isOnline && (
           <p className="cockpit-offline-hint">Finish the current ride to go offline</p>
         )}
         <CockpitNetworkBanner
@@ -1150,12 +1175,11 @@ export default function MapHome() {
 
       {completedFlash && (
         <div data-testid="completed-flash" className="completed-flash-banner">
-          <p className="font-semibold text-emerald-100">
-            Trip with {completedFlash.riderName} completed
-          </p>
-          <p className="mt-1 text-[13px] text-emerald-200/90" data-testid="completed-flash-headline">
-            Driver total payout {formatCurrency(completedFlash.fare)} · added to earnings
-          </p>
+          <CompletionReceiptCard
+            ride={completedFlash.ride}
+            amount={completedFlash.fare}
+            onDismiss={() => setCompletedFlash(null)}
+          />
           {completedFlash.ride?.pricing && (
             <div className="mt-3">
               <TripTruthDetails
@@ -1199,6 +1223,8 @@ export default function MapHome() {
           lastCompletedRide={lastCompletedRide}
           onDismissCompletedSummary={() => setLastCompletedRide(null)}
           rideAi={rideAi}
+          readiness={driverReadiness}
+          onReadinessAction={handleReadinessAction}
         />
       )}
 

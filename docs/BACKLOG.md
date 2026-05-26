@@ -72,6 +72,7 @@ See **`docs/HALFAPP_DRIVER_PRODUCT_COMPLETION_ROADMAP_01.md`** for ordered slice
 | ~~Profile / settings shell~~ | **DONE** — `docs/PROFILE_SETTINGS_SHELL_01.md`; vehicle/contact/session/preferences all via API; AppShellLayout; no mock data |
 | ~~Notifications product UI~~ | **DONE** — `docs/NOTIFICATIONS_PRODUCT_UI_01.md`; backend-only, DEV-gated demo tab, AppShellLayout; stale heading E2E fixed |
 | ~~Cockpit session resilience~~ | **DONE (code) / TODO (E2E)** — `docs/COCKPIT_SESSION_RESILIENCE_01.md`; backend + frontend shipped; live-stack E2E run is owner-runnable |
+| ~~Driver closed-beta readiness shaping~~ | **DONE** — `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`; DriverReadinessV1, go-online gate, ride offer expired/conflict states, honest completion receipt; `npm test` 158 passed; `npm run build` passed |
 | ~~Settlement / calculation copy lock~~ | **DONE** — `docs/TRIPS_EARNINGS_POLISH_01.md`; delivery vocabulary aligned across trips/earnings/chart; 150 npm tests pass |
 | ~~Token revocation / refresh design~~ | **DONE** — `docs/TOKEN_SESSION_SAFETY_01.md`; migration 0016, rotation, logout-all; `test_auth_refresh_rotation.py` |
 | ~~CORS hardening + observability~~ | **DONE** — `docs/DEPLOY_CORS_OBSERVABILITY_01.md`; CORS hardened; structured request logging middleware with `driver_id`/`ride_id` correlation |
