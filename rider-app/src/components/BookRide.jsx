@@ -127,7 +127,7 @@ export default function BookRide({ onRequest, disabled, customerName }) {
           </div>
           <div className="fare-row">
             <span className="fare-label">Payment</span>
-            <span className="fare-value">Ledger (beta)</span>
+            <span className="fare-value">Test record · no charge</span>
           </div>
         </div>
       )}

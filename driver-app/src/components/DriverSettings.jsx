@@ -537,6 +537,11 @@ export default function DriverSettings() {
                   Trips &amp; audit receipts →
                 </Link>
               </li>
+              <li className="ha-list-item">
+                <Link to="/driver/help" className="text-sm font-medium" style={{ color: 'var(--ha-green)' }} data-testid="settings-help-link">
+                  Help &amp; support →
+                </Link>
+              </li>
             </ul>
           </section>
 

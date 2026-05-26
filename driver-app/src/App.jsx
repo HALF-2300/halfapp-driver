@@ -27,6 +27,7 @@ import Notifications from './components/Notifications'
 
 import Profile from './components/Profile'
 import DriverSettings from './components/DriverSettings.jsx'
+import HelpSupport from './components/HelpSupport.jsx'
 
 import { isEngineeringIntelligenceEnabled } from './utils/engineeringIntelligenceContext.js'
 
@@ -155,6 +156,8 @@ function AppRoutes() {
       <Route path="/driver/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
       <Route path="/driver/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+
+      <Route path="/driver/help" element={<ProtectedRoute><HelpSupport /></ProtectedRoute>} />
 
 
 
