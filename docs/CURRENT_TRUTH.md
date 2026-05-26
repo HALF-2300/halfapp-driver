@@ -12,6 +12,34 @@ This document is the short source of current product truth. It should be used wh
 
 **This repository is not a complete mobility, routing, or city-scale ride-hailing operating system.** The active product is a driver lifecycle spine plus minimal rider API on the **v0.1 foundation** — see `docs/PRODUCT_BOUNDARY_STAGE0.md` and `docs/RIDE_APP_FOUNDATION_V0_1.md`.
 
+---
+
+## Verified claim boundary (accepted by owner — 2026-05-25)
+
+Locked in by `HALFAPP_INTERNAL_PRODUCT_COMPLETION_PASS_01`.
+
+**Allowed claim:** HalfApp is **internally usable and coherent as a local product shell** with honest labels and tested app surfaces (driver + rider + ops + backend).
+
+**Forbidden claims** — must not appear in any UI, marketing, report, partner email, or external statement:
+
+- HalfApp is ready for **public release**
+- HalfApp is ready for **real delivery operations**
+- HalfApp is ready for **legal launch** in any jurisdiction
+- HalfApp executes **real payouts** to driver bank accounts
+- HalfApp uses **production routing** (OSRM runtime not proven)
+- HalfApp is **deployed to the App Store or Play Store**
+- HalfApp is a **marketplace**
+
+External-launch readiness (Phases B–F in `docs/HALFAPP_REALITY_REPORT_01.md`) remains **NO_GO** until each blocked gate is proven:
+
+- G1 Postgres local proof (Docker)
+- G2 OSRM runtime proof (Docker)
+- G3 Owner courier day (human walkthrough)
+- Live-stack E2E session recovery
+- Legal entity / insurance / hosting / mobile stores / public launch
+
+Verdict status as of 2026-05-25: **INTERNAL_PRODUCT_COMPLETION_GO** · **PUBLIC_LAUNCH_NO_GO**.
+
 Authoritative program snapshot: `docs/HALFAPP_COMPREHENSIVE_PROGRAM_REPORT_03.md`.  
 Reconciled backlog: `docs/BACKLOG.md`.  
 **What to email experts:** `docs/HALFAPP_PARTNER_COMPLETION_PACKAGE_01.md` (v6.0 — questions only, open-board context).  
