@@ -777,8 +777,10 @@ export default function MapHome() {
         if (!cancelled && (presence?.state === 'stale' || presence?.state === 'disconnected')) {
           setStatus(statusFromPresence(presence))
         }
-      } catch {
-        // Heartbeat must not invent local truth.
+        if (!cancelled) clearNetworkDegraded()
+      } catch (err) {
+        if (!cancelled && isTransientNetworkError(err)) markNetworkDegraded()
+        // Heartbeat must not invent local truth about ride state.
       }
     }
     heartbeat()
@@ -787,7 +789,7 @@ export default function MapHome() {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [status.online])
+  }, [status.online, markNetworkDegraded, clearNetworkDegraded])
 
   useEffect(() => {
     if (!status.online || activeRide || status.state !== DRIVER_STATES.ONLINE_IDLE) return undefined
@@ -828,6 +830,14 @@ export default function MapHome() {
     }, 5_000)
     return () => window.clearInterval(timer)
   }, [activeRide, refreshBackendTruth, sseFailed, status.online, status.state])
+
+  useEffect(() => {
+    if (!status.online || status.state !== DRIVER_STATES.REQUEST_INCOMING || !activeRide?.rideId) return undefined
+    const timer = window.setInterval(() => {
+      refreshBackendTruth(true, { quiet: true })
+    }, 1_000)
+    return () => window.clearInterval(timer)
+  }, [activeRide?.rideId, refreshBackendTruth, status.online, status.state])
 
   const advanceState = useCallback(async () => {
     const next = getNextDriverAction(status.state)

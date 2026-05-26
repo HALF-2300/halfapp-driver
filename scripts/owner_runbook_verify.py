@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Owner runbook §1–4 API verification (same DB as local uvicorn)."""
-
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import io
 import json
 import os
 import sys
@@ -10,6 +10,12 @@ import uuid
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+
+# Force UTF-8 stdout/stderr on Windows to avoid charmap errors with Unicode
+if hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'buffer'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 REPO = Path(__file__).resolve().parents[1]
 BACKEND = REPO / "backend"

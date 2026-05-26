@@ -6,23 +6,25 @@ export function rideFlowApiBase() {
 }
 
 export function buildFlowUsers(stamp: number) {
+  const nonce = Math.random().toString(36).slice(2, 8)
+  const suffix = `${stamp}-${nonce}`
   return {
     driver: {
       name: 'Flow Driver',
-      email: `flowdriver+${stamp}@example.com`,
+      email: `flowdriver+${suffix}@example.com`,
       password: 'FlowDriver1!',
-      license_no: `FLD${String(stamp).slice(-8)}`,
+      license_no: `FLD${String(stamp).slice(-6)}${nonce.toUpperCase().slice(0, 4)}`,
       role: 'driver',
     },
     rider: {
       name: 'Flow Rider',
-      email: `flowrider+${stamp}@example.com`,
+      email: `flowrider+${suffix}@example.com`,
       password: 'FlowRider1!',
       role: 'customer',
     },
     admin: {
       name: 'Flow Admin',
-      email: `flowadmin+${stamp}@example.com`,
+      email: `flowadmin+${suffix}@example.com`,
       password: 'FlowAdmin1!',
       role: 'admin',
     },

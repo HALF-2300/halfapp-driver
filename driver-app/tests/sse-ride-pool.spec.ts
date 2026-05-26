@@ -14,6 +14,13 @@ import {
 test.describe('SSE ride pool latency', () => {
   async function ensureOnlineIdle(page: import('@playwright/test').Page) {
     await expect(page.getByTestId('map-home')).toBeVisible({ timeout: 30_000 })
+    const idle = page.getByTestId('sheet-online-idle')
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      if (await idle.isVisible().catch(() => false)) return
+      if (!(await page.getByTestId('sheet-request-incoming').isVisible().catch(() => false))) break
+      await page.getByTestId('decline-ride-btn').click()
+      await page.waitForTimeout(500)
+    }
     const goOnline = page.getByTestId('go-online-btn')
     if (await goOnline.isVisible().catch(() => false)) {
       await goOnline.click()

@@ -47,6 +47,12 @@ async function ensureOnlineIdle(page: import('@playwright/test').Page) {
   await waitForSessionHydration(page)
   const idle = page.getByTestId('sheet-online-idle')
   if (await idle.isVisible().catch(() => false)) return
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (await idle.isVisible().catch(() => false)) return
+    if (!(await page.getByTestId('sheet-request-incoming').isVisible().catch(() => false))) break
+    await page.getByTestId('decline-ride-btn').click()
+    await page.waitForTimeout(500)
+  }
   const goOnline = page.getByTestId('go-online-btn')
   // The Go-online button may re-render once or twice while the cockpit settles
   // after hydration (readiness check, marketplace refresh). Retry the click a
@@ -95,8 +101,20 @@ async function setupRideInState(
 ) {
   const created = await createRiderTrip(request, riderToken, `Recovery ${state}`)
   const rideId = created.ride.id as number
-  await expect(page.getByTestId('sheet-request-incoming')).toBeVisible({ timeout: 20_000 })
-  await page.getByTestId('accept-ride-btn').click()
+  const incomingRide = page.locator(`[data-testid="sheet-request-incoming"][data-ride-id="${rideId}"]`)
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (await incomingRide.isVisible().catch(() => false)) break
+    const visibleRideId = await page
+      .getByTestId('sheet-request-incoming')
+      .getAttribute('data-ride-id')
+      .catch(() => null)
+    if (visibleRideId && visibleRideId !== String(rideId)) {
+      await page.getByTestId('decline-ride-btn').click()
+    }
+    await page.waitForTimeout(500)
+  }
+  await expect(incomingRide).toBeVisible({ timeout: 20_000 })
+  await incomingRide.getByTestId('accept-ride-btn').click()
   await expect
     .poll(async () => page.getByTestId('sheet-accepted_to_pickup').isVisible().catch(() => false), {
       timeout: 30_000,
