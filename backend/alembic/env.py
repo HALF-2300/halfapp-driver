@@ -109,6 +109,53 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Postgres compatibility shim:
+        # Many migrations use raw SQLite-ish DDL like `DATETIME` (a type alias in
+        # SQLite) which Postgres treats as an unknown type. We normalize those
+        # statements at execution-time for Postgres.
+        if getattr(connection.dialect, "name", None) == "postgresql":
+            _orig_exec_driver_sql = connection.exec_driver_sql
+
+            def _exec_driver_sql_normalized(sql, *args, **kwargs):  # type: ignore[no-untyped-def]
+                if isinstance(sql, str):
+                    sql = sql.replace("DATETIME", "TIMESTAMP")
+                    sql = sql.replace("id INTEGER PRIMARY KEY", "id SERIAL PRIMARY KEY")
+                    # Normalize common SQLite-ish integer flag columns to Postgres BOOLEAN.
+                    # These are defined as Boolean in the SQLAlchemy models but some migrations
+                    # still declare them as INTEGER in raw DDL.
+                    sql = sql.replace(
+                        "traffic_aware_pricing INTEGER NOT NULL DEFAULT 0",
+                        "traffic_aware_pricing BOOLEAN NOT NULL DEFAULT false",
+                    )
+                    sql = sql.replace(
+                        "is_active INTEGER NOT NULL DEFAULT 1",
+                        "is_active BOOLEAN NOT NULL DEFAULT true",
+                    )
+                    sql = sql.replace(
+                        "traffic_aware INTEGER",
+                        "traffic_aware BOOLEAN",
+                    )
+                    sql = sql.replace(
+                        "google_maps_fallback_enabled INTEGER DEFAULT 0",
+                        "google_maps_fallback_enabled BOOLEAN DEFAULT false",
+                    )
+                    sql = sql.replace(
+                        "mapbox_traffic_enabled INTEGER DEFAULT 0",
+                        "mapbox_traffic_enabled BOOLEAN DEFAULT false",
+                    )
+                    sql = sql.replace(
+                        "financial_locked INTEGER NOT NULL DEFAULT 0",
+                        "financial_locked BOOLEAN NOT NULL DEFAULT false",
+                    )
+                    sql = sql.replace(
+                        "online INTEGER NOT NULL DEFAULT 0",
+                        "online BOOLEAN NOT NULL DEFAULT false",
+                    )
+                    sql = sql.replace("online INTEGER", "online BOOLEAN")
+                return _orig_exec_driver_sql(sql, *args, **kwargs)
+
+            connection.exec_driver_sql = _exec_driver_sql_normalized  # type: ignore[assignment]
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

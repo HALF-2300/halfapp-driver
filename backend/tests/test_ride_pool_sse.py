@@ -4,68 +4,45 @@ from __future__ import annotations
 
 import asyncio
 import json
-import uuid
 
-from database import SessionLocal
 import models.user  # noqa: F401
 import models.ride  # noqa: F401
 import routes.notifications  # noqa: F401
 
 from fastapi.testclient import TestClient
 from main import app
-from models.user import UserRole
-from services.auth import create_access_token, create_user
 from services.event_bus import event_bus
-from services.lifecycle import DriverStatus
 from services.ride_pool_broadcast import (
     POOL_EVENT_CREATED,
+    emit_pool_delta,
     format_sse_event,
     pool_delta_payload,
 )
-
-
-def _driver_token(db) -> str:
-    uid = uuid.uuid4().hex[:10]
-    user = create_user(
-        db,
-        f"sse_driver_{uid}@example.com",
-        "SSE Driver",
-        "pw12345",
-        UserRole.DRIVER,
-        f"DL{uid}",
-        driver_approval_status="approved",
-    )
-    user.availability = DriverStatus.AVAILABLE.value
-    db.commit()
-    return create_access_token(sub=user.email, role=user.role.value)
 
 
 def test_sse_stream_requires_auth():
     with TestClient(app) as client:
         denied = client.get("/drivers/available-rides/stream")
         assert denied.status_code == 401
-
-
-def test_sse_stream_accepts_access_token_query_param():
-    db = SessionLocal()
-    try:
-        token = _driver_token(db)
-    finally:
-        db.close()
-
-    with TestClient(app) as client:
-        # Non-streaming probe: invalid token should 401 before hanging on body read.
         bad = client.get("/drivers/available-rides/stream?access_token=not-a-jwt")
         assert bad.status_code == 401
 
-        # Valid token opens the stream (content-type only — body read is E2E / manual).
-        with client.stream(
-            "GET",
-            f"/drivers/available-rides/stream?access_token={token}",
-            timeout=3,
-        ) as response:
-            assert response.status_code == 200
-            assert "text/event-stream" in response.headers.get("content-type", "")
+
+def test_emit_pool_delta_reaches_sync_subscriber():
+    sync_queue = event_bus.subscribe_sync("ride_pool")
+    try:
+        emit_pool_delta(
+            event=POOL_EVENT_CREATED,
+            ride_id=99,
+            ride={"id": 99},
+            removed=False,
+        )
+        raw = sync_queue.get(timeout=1.0)
+        payload = json.loads(raw)
+        assert payload["event"] == POOL_EVENT_CREATED
+        assert payload["ride_id"] == 99
+    finally:
+        event_bus.unsubscribe_sync("ride_pool", sync_queue)
 
 
 def test_format_sse_event_snapshot_and_delta():

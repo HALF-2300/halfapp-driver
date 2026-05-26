@@ -8,6 +8,8 @@ from __future__ import annotations
 from alembic import op
 import sqlalchemy as sa
 
+from db_migration_helpers import is_postgresql
+
 
 revision = "0014_dispatch_cascade"
 down_revision = "0013_driver_status_online_offline"
@@ -31,17 +33,34 @@ def upgrade() -> None:
     op.create_index("ix_ride_dispatch_log_ride_id", "ride_dispatch_log", ["ride_id"])
     op.create_index("ix_ride_dispatch_log_driver_id", "ride_dispatch_log", ["driver_id"])
 
-    with op.batch_alter_table("rides") as batch_op:
-        batch_op.add_column(sa.Column("dispatch_driver_id", sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column("dispatch_expires_at", sa.DateTime(), nullable=True))
-        batch_op.add_column(sa.Column("dispatch_attempt_count", sa.Integer(), nullable=False, server_default="0"))
+    bind = op.get_bind()
+    if is_postgresql(bind):
+        op.add_column("rides", sa.Column("dispatch_driver_id", sa.Integer(), nullable=True))
+        op.add_column("rides", sa.Column("dispatch_expires_at", sa.DateTime(), nullable=True))
+        op.add_column(
+            "rides",
+            sa.Column("dispatch_attempt_count", sa.Integer(), nullable=False, server_default="0"),
+        )
+    else:
+        with op.batch_alter_table("rides") as batch_op:
+            batch_op.add_column(sa.Column("dispatch_driver_id", sa.Integer(), nullable=True))
+            batch_op.add_column(sa.Column("dispatch_expires_at", sa.DateTime(), nullable=True))
+            batch_op.add_column(
+                sa.Column("dispatch_attempt_count", sa.Integer(), nullable=False, server_default="0")
+            )
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("rides") as batch_op:
-        batch_op.drop_column("dispatch_attempt_count")
-        batch_op.drop_column("dispatch_expires_at")
-        batch_op.drop_column("dispatch_driver_id")
+    bind = op.get_bind()
+    if is_postgresql(bind):
+        op.drop_column("rides", "dispatch_attempt_count")
+        op.drop_column("rides", "dispatch_expires_at")
+        op.drop_column("rides", "dispatch_driver_id")
+    else:
+        with op.batch_alter_table("rides") as batch_op:
+            batch_op.drop_column("dispatch_attempt_count")
+            batch_op.drop_column("dispatch_expires_at")
+            batch_op.drop_column("dispatch_driver_id")
     op.drop_index("ix_ride_dispatch_log_driver_id", table_name="ride_dispatch_log")
     op.drop_index("ix_ride_dispatch_log_ride_id", table_name="ride_dispatch_log")
     op.drop_table("ride_dispatch_log")

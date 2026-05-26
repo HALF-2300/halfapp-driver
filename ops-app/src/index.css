@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ops-bg: #0b0f17;
+  --ops-surface: #121826;
+  --ops-border: rgba(255, 255, 255, 0.1);
+  --ops-text: #f1f5f9;
+  --ops-muted: #94a3b8;
+  --ops-accent: #f97316;
+  --ops-success: #22c55e;
+  --ops-danger: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ops-table th,
+.ops-table td {
+  border-bottom: 1px solid var(--ops-border);
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+}
+
+.ops-table th {
+  color: var(--ops-muted);
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ops-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ops-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.ops-btn {
+  border: 1px solid var(--ops-border);
+  background: var(--ops-surface);
+  color: var(--ops-text);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.ops-btn:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.ops-btn-danger {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fecaca;
+}
+
+.ops-btn-primary {
+  border-color: rgba(249, 115, 22, 0.6);
+  color: #fed7aa;
+}

@@ -26,7 +26,7 @@ function formatCents(cents) {
 
 function formatExecutionType(type) {
   const map = {
-    charge_rider: 'Rider charge',
+    charge_rider: 'Customer charge',
     refund_rider: 'Refund',
     dispute: 'Dispute',
     payout_driver: 'Payout record',

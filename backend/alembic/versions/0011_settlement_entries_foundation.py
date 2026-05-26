@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from alembic import op
 
+from db_migration_helpers import is_postgresql
 revision = "0011_settlement_entries_foundation"
 down_revision = "0010_route_snapshots_foundation"
 branch_labels = None
@@ -16,8 +17,7 @@ depends_on = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    conn.exec_driver_sql(
-        """
+    settlement_entries_sql = """
         CREATE TABLE IF NOT EXISTS settlement_entries (
             id INTEGER PRIMARY KEY,
             ride_id INTEGER NOT NULL,
@@ -43,7 +43,9 @@ def upgrade() -> None:
             UNIQUE (ride_id, entry_type)
         )
         """
-    )
+    if is_postgresql(conn):
+        settlement_entries_sql = settlement_entries_sql.replace("DATETIME", "TIMESTAMP")
+    conn.exec_driver_sql(settlement_entries_sql)
     conn.exec_driver_sql(
         "CREATE INDEX IF NOT EXISTS ix_settlement_entries_ride_id ON settlement_entries (ride_id)"
     )

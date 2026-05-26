@@ -251,7 +251,7 @@ export default function Profile() {
             <>
               <div className="ha-stat-grid">
                 <div className="ha-stat">
-                  <div className="ha-stat-label">Total rides</div>
+                  <div className="ha-stat-label">Total jobs</div>
                   <div className="ha-stat-value">{formatStatNumber(stats.total_rides)}</div>
                 </div>
                 <div className="ha-stat">

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from alembic import op
 
+from db_migration_helpers import is_postgresql, table_exists
+
 
 revision = "0002_canonical_ride_status_contract"
 down_revision = "0001_alembic_hardened_schema"
@@ -198,6 +200,15 @@ def _rebuild_ride_dependents(conn) -> None:
 
 def upgrade() -> None:
     conn = op.get_bind()
+    if is_postgresql(conn):
+        # Alembic defaults to VARCHAR(32) for alembic_version.version_num, but our
+        # revision ids are longer (e.g. 0002_canonical_ride_status_contract).
+        conn.exec_driver_sql(
+            "ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)"
+        )
+        # 0001 PG path already creates canonical ride status CHECK including driver_arrived.
+        if table_exists(conn, "rides"):
+            return
     ride_schema = conn.exec_driver_sql(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='rides'"
     ).scalar() or ""

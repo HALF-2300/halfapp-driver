@@ -590,6 +590,33 @@ class DriverAPI {
     }
 
     const transparencyMatch = endpoint.match(/^\/drivers\/rides\/(\d+)\/transparency$/)
+    const paymentMatch = endpoint.match(/^\/drivers\/rides\/(\d+)\/payment$/)
+    if (paymentMatch && method === 'GET') {
+      const rideId = Number(paymentMatch[1])
+      const rides = this.getMockRideDatabase()
+      const ride = rides.find((item) => Number(item.id) === rideId)
+      if (!ride) throw new Error('Ride not found')
+      const pricing = ride.pricing || buildMockPricingViewForRide(ride, { lock: ride.status === 'completed' })
+      const gross = pricing.customer_total_cents || 925
+      const driverPayout = pricing.driver_ride_payout_cents || Math.round(gross * 0.72)
+      return {
+        message: 'Ride payment',
+        payment: {
+          id: rideId,
+          ride_id: rideId,
+          rider_id: ride.customer_id || null,
+          driver_id: ride.driver_id || 1,
+          amount_cents: gross,
+          driver_payout_cents: driverPayout,
+          currency: 'USD',
+          status: ride.status === 'completed' ? 'captured' : ride.status === 'cancelled' ? 'failed' : 'authorized',
+          created_at: ride.created_at,
+          authorized_at: ride.accepted_at,
+          captured_at: ride.completed_at,
+          failed_at: ride.cancelled_at,
+        },
+      }
+    }
     if (transparencyMatch && method === 'GET') {
       const rideId = Number(transparencyMatch[1])
       const rides = this.getMockRideDatabase()
@@ -1258,6 +1285,14 @@ class DriverAPI {
       if (!ALLOW_OFFLINE_MOCK) throw error
       return this.getMockResponse('/drivers/earnings')
     }
+  }
+
+  async getRidePayments() {
+    return await this.call('/drivers/me/ride-payments')
+  }
+
+  async getRidePayment(rideId) {
+    return await this.call(`/drivers/rides/${rideId}/payment`)
   }
 
   async getPaymentReconciliation() {

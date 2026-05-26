@@ -8,11 +8,11 @@ describe('friendlyAcceptError', () => {
       status: 409,
       detail: { reason: 'ride_already_claimed', detail: 'Ride already claimed' },
     })
-    assert.equal(message, 'Ride taken by another driver')
+    assert.equal(message, 'Job taken by another driver')
   })
 
   it('avoids raw JSON in generic errors', () => {
     const message = friendlyAcceptError({ status: 500, message: '{"detail":"broken"}' })
-    assert.equal(message, 'Could not accept ride')
+    assert.equal(message, 'Could not accept job')
   })
 })

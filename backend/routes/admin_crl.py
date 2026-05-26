@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -33,11 +33,14 @@ class CityEventIn(BaseModel):
 
 @router.get("/overview")
 def crl_admin_overview(
+    response: Response,
     admin_user: AuthPrincipal = Depends(ADMIN_ACCESS),
     db: Session = Depends(get_db),
 ):
     _ = load_principal_user(db, admin_user)
-    return build_crl_admin_overview(db)
+    body, source = build_crl_admin_overview(db)
+    response.headers["X-CRL-Source"] = source
+    return body
 
 
 @router.post("/events")

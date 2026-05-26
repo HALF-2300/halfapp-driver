@@ -10,7 +10,6 @@ export function useActiveRide({ enabled = true } = {}) {
 
   const fetchActiveRide = useCallback(async () => {
     if (!enabled) {
-      setActiveRide(null)
       return null
     }
     setActiveRide(undefined)
@@ -27,11 +26,11 @@ export function useActiveRide({ enabled = true } = {}) {
   }, [enabled])
 
   useEffect(() => {
-    let cancelled = false
     if (!enabled) {
-      setActiveRide(null)
       return undefined
     }
+    let cancelled = false
+    setActiveRide(undefined)
     driverAPI
       .getActiveRide()
       .then((data) => {
@@ -51,5 +50,7 @@ export function useActiveRide({ enabled = true } = {}) {
     }
   }, [enabled])
 
-  return { activeRide, error, refetch: fetchActiveRide, loading: activeRide === undefined }
+  const loading = enabled && activeRide === undefined
+
+  return { activeRide, error, refetch: fetchActiveRide, loading }
 }

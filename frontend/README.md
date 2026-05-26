@@ -1,9 +1,15 @@
-# Legacy Frontend — Inactive / Archive
+# Legacy Frontend — ARCHIVE / NOT WIRED / NOT PRODUCTION
 
-**Status:** Legacy. **Not** part of the active HalfApp / Liánlù product.
+**Status:** Legacy archive. **Not** part of the active HalfApp product.
 
-Date: 2026-05-20  
-Order: `HALFAPP_STAGE0_TRUTH_BOUNDARY_LOCK_01`
+Date: 2026-05-24  
+Order: `HALFAPP_STAGE0_TRUTH_BOUNDARY_LOCK_01` · `docs/SYSTEM_TRUTH.md`
+
+| Label | Meaning |
+|-------|---------|
+| **ARCHIVE** | Historical reference only; do not develop here by default |
+| **NOT WIRED** | Expects `/admin/*` and legacy routes not mounted in `backend/main.py` |
+| **NOT PRODUCTION** | UI can look complete while returning 404 against the live API |
 
 ---
 

@@ -10,6 +10,7 @@
 
 | Doc | Role |
 |-----|------|
+| `docs/SYSTEM_TRUTH.md` | **Authoritative** Lyft-like gap classification — what is/is not product |
 | `docs/CURRENT_TRUTH.md` | Short PR-review truth table |
 | `docs/HALFAPP_PARTNER_COMPLETION_PACKAGE_01.md` | External expert questionnaire (v6.0) |
 | `docs/HALFAPP_AGENT_ACTION_DIRECTIVES.md` | Agent execution order |
@@ -23,7 +24,7 @@
 
 ## 1.1 One-paragraph verdict
 
-**HalfApp Driver** is a **driver-side ride marketplace MVP** built as FastAPI + SQLAlchemy + Alembic on the backend and React/Vite (Leaflet map cockpit) on the frontend. The backend is the **single source of truth** for ride lifecycle, open-board dispatch (first atomic claim wins), driver presence, integer-cent pricing records, route-provider metadata, notifications, and rule-based “city intelligence” overlays (SIL + CRL). The program has crossed a critical threshold: it is no longer a mock-heavy demo — it is a **narrow but auditable product spine** with hundreds of automated proofs. It is **not** a production marketplace, city-scale mobility OS, payment processor, or ML-driven dispatch engine. The highest-value next step is **staging proof** (PostgreSQL, OSRM runtime, owner-car day) and **shrinking ambiguity** (dual spines, doc/test drift, runtime gaps) — not feature sprawl.
+**HalfApp Driver** is a **driver-side execution system with supporting APIs** — FastAPI + SQLAlchemy + Alembic on the backend and React/Vite (Leaflet map cockpit) on the frontend. The backend is the **single source of truth** for ride lifecycle, open-board dispatch (first atomic claim wins), driver presence, integer-cent pricing records, route-provider metadata, notifications, and rule-based “city intelligence” overlays (SIL + CRL). The program has crossed a critical threshold: it is no longer a mock-heavy demo — it is a **narrow but auditable driver spine** with hundreds of automated proofs. It is **not** a production marketplace, Lyft-like system, payment product, or ML-driven dispatch engine. There is **no** full rider → driver → payment → ops loop. The highest-value next step is **staging proof** (PostgreSQL, OSRM runtime, owner-car day) and **building missing product surfaces** (rider app, payments UX, ops console) — not treating legacy UI or API stubs as completeness.
 
 ## 1.2 What “the brain” means in this repository
 

@@ -43,7 +43,7 @@ test('driver MVP demo loop end-to-end', async ({ page }) => {
 
   // Trip should appear in Trips list.
   await page.getByTestId('tab-trips').click()
-  await expect(page.getByText('Backend completed trips')).toBeVisible()
+  await expect(page.getByText('Completed deliveries')).toBeVisible()
   await expect(page.getByText('Simulation Rider')).toBeVisible()
 
   // Earnings should reflect the trip.

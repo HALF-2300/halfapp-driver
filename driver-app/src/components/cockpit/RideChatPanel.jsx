@@ -76,7 +76,7 @@ export default function RideChatPanel({ rideId }) {
           className="flex-1 text-sm rounded-lg px-2 py-2"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Message rider…"
+          placeholder="Message customer…"
           data-testid="ride-chat-input"
         />
         <button

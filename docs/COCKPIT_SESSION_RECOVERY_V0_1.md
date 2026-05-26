@@ -4,37 +4,71 @@ Status: GO (v0.1)
 
 ## What shipped
 
-- New backend endpoint: `GET /drivers/me/active-ride`.
-  - Returns the driver's current active ride in status:
-    - `accepted`
-    - `driver_arrived`
-    - `in_progress`
-  - Includes full `RideDriverView` payload (route metadata, pricing quote, rider/customer fields, lifecycle data).
-  - Includes `lifecycle_stage` and navigation bundle.
-- Cockpit startup (`MapHome`) now calls active-ride recovery during initial load and hydrates state before normal refresh.
-- Browser hard refresh during active trip restores cockpit panel for the correct lifecycle stage.
-- `CockpitNetworkBanner` now supports explicit retry action and online-recovery retry callback.
+- `GET /drivers/me/active-ride` — source of truth for cockpit session recovery.
+  - Active statuses: `accepted`, `driver_arrived`, `in_progress`
+  - Full `RideDriverView` (pricing, route metadata, dispatch fields)
+  - `lifecycle` block: `current`, `available_actions`, `history` (last 10 events)
+  - `route` truth block (provider, snapshots summary)
+  - `customer` block (`name`, `phone_masked` when present)
+  - `navigation` bundle for in-trip panels
+- Structured lifecycle ledger payloads on accept / arrive / start / complete / rider cancel (`from_state`, `to_state`, `reason`, `actor`, `server_timestamp`)
+- `useActiveRide` hook — `undefined` loading, `null` idle, object active
+- `CockpitSkeleton` — no empty-cockpit flash while active-ride loads
+- `MapHome` hydrates from active-ride before marketplace refresh; `recoverActiveRideOnOnline` on network return (including customer-cancel notice)
+- `data-cockpit-state` + `data-ride-id` on active-trip sheets for tests and diagnostics
 
 ## Recovery behavior
 
 On load:
-1. fetch `/drivers/me/status`
-2. fetch `/drivers/profile`
-3. fetch `/drivers/me/active-ride`
-4. if active ride exists, hydrate `activeRide`, driver state, and resume notice
-5. run normal truth refresh to sync remaining fields
 
-## Acceptance proof path
+1. `GET /drivers/me/status`
+2. `GET /drivers/profile` (approval)
+3. `GET /drivers/me/active-ride` (skeleton until resolved)
+4. If active ride exists → hydrate `activeRide`, driver state, resume banner
+5. Normal truth refresh (`my-rides`, pool, earnings)
 
-1. Driver claims a ride.
-2. Hard refresh at:
-   - accepted → sees `sheet-accepted_to_pickup`
-   - driver_arrived → sees `sheet-arrived_pickup`
-   - in_progress → sees `sheet-in_progress`
-3. No manual state repair required.
+On `navigator.online` / network retry:
 
-## Test coverage
+1. Refetch `/drivers/me/active-ride`
+2. Silently advance UI if server lifecycle moved ahead while offline
+3. If ride gone while driver was on-trip → show: *This ride was cancelled by the customer while you were offline.*
 
-- Playwright: `driver-app/tests/sse-session-recovery.spec.ts`
-  - test A: two windows receive ride pool update quickly (SSE path)
-  - test B: hard-refresh stage recovery through active lifecycle phases
+## Acceptance proof
+
+| Scenario | Expected UI |
+|----------|-------------|
+| Refresh @ accepted | `sheet-accepted_to_pickup`, `data-cockpit-state="accepted"`, same `data-ride-id` |
+| Refresh @ driver_arrived | `sheet-arrived_pickup`, `data-cockpit-state="driver_arrived"` |
+| Refresh @ in_progress | `sheet-in_progress`, `data-cockpit-state="in_progress"` |
+| Slow active-ride | `cockpit-skeleton` then correct sheet |
+| Customer cancel while offline | `backend-hide-notice` with cancel copy |
+
+## Tests
+
+### Backend
+
+```text
+cd backend
+python -m pytest tests/test_active_ride_recovery.py -q
+# 2 passed
+```
+
+### Playwright (ride-flow stack, ports 3024 + 8011)
+
+```text
+cd driver-app
+npm run test:e2e:ride-flow -- tests/session-recovery.spec.ts
+```
+
+Also covered by `tests/sse-session-recovery.spec.ts` (hard-refresh through all three active stages).
+
+## Files
+
+| Area | Path |
+|------|------|
+| API | `backend/routes/drivers.py` |
+| Recovery builder | `backend/services/active_ride_recovery.py` |
+| Lifecycle payloads | `backend/services/ride_lifecycle_events.py`, `backend/services/lifecycle.py` |
+| Hook | `driver-app/src/hooks/useActiveRide.js` |
+| Shell | `driver-app/src/components/MapHome.jsx`, `cockpit/CockpitSkeleton.jsx` |
+| E2E | `driver-app/tests/session-recovery.spec.ts` |

@@ -1,8 +1,12 @@
 # HalfApp Current Truth
 
-Date: 2026-05-22  
-Orders: `HALFAPP_STAGE0_TRUTH_BOUNDARY_LOCK_01`, `HALFAPP_TRUTH_SYNC_V0_1_DOC_RECONCILIATION_01`, `HALFAPP_TRUTH_SYNC_BACKLOG_RECONCILIATION_01`  
+Date: 2026-05-25
+Orders: `HALFAPP_AI_AGENT_COMPLETION_DIRECTIVES_01`, `HALFAPP_STAGE0_TRUTH_BOUNDARY_LOCK_01`
 Status: operational review spec for engineers and reviewers.
+
+**Authoritative classification:** `docs/SYSTEM_TRUTH.md` — **delivery-driver execution** + shipped requester/ops/simulated payments; **not** a production marketplace OS.
+
+**Agent execution plan:** `docs/HALFAPP_AI_AGENT_COMPLETION_DIRECTIVES_01.md` · **Delivery big picture:** `docs/HALFAPP_PROGRAM_BRAIN_COMPREHENSIVE_REPORT_06.md`
 
 This document is the short source of current product truth. It should be used when reviewing pull requests so legacy, mock, dormant, or future behavior is not accidentally described as live HalfApp behavior.
 
@@ -29,7 +33,7 @@ Reconciled backlog: `docs/BACKLOG.md`.
 | **Settlement obligation rows** | **GO (boundary)** | `settlement_entries` — not payout execution; `tests/test_ride_settlement_ledger.py` |
 | **Route snapshots** | **FOUNDATION** | Table + quote/complete rows; `tests/test_route_snapshots_foundation.py` |
 | **OSRM code path** | **GO** | `tests/test_osrm_self_hosted_routing.py` (mocked HTTP) |
-| **OSRM runtime** | **NO_GO** | `docs/SELF_HOSTED_ROUTING_PROOF_V0_2_STATUS.md` (v0.1 code GO unchanged) |
+| **OSRM runtime** | **NO_GO** | `docs/SELF_HOSTED_ROUTING_PROOF_V0_3_REPORT.md` — run `scripts/prove_osrm_runtime.py` |
 | **Payments / PSP** | **PARTIAL** | Phases 1–5: execution + reconciliation + Connect payout visibility (`PAYOUTS_ENABLED`); **no** bank deposit UI claims |
 | **Token revocation / refresh** | **GO** | `0016_refresh_tokens_foundation`; `tests/test_auth_refresh_rotation.py` |
 | **Production SECRET_KEY** | **GO** | `HALFAPP_PRODUCTION_SECRET_KEY_GUARD_01`; `tests/test_production_guards.py` |
@@ -37,8 +41,29 @@ Reconciled backlog: `docs/BACKLOG.md`.
 | **Dossier spine** | **PARALLEL_NOT_WIRED** | Mounted `/supply`, `/demand`, `/trip`; not in `driver-app/src/utils/api.js` |
 | **Engineering Intelligence Safe Shell** | **GO — LOCAL_CONTEXT_ONLY** | `#/engineering-intelligence`; `tests/test_engineering_intelligence_status.py` |
 | **Ride product AI/LLM inference** | **NOT IMPLEMENTED** | No model inference on dispatch/pricing/lifecycle |
-| **Backend test gate** | **GO** | `docs/BACKEND_TEST_GATE_PROOF_V0_1.md` — 345 passed, 7 skipped (SQLite) |
+| **Backend test gate** | **GO** | `py -3.11 -m pytest -q --tb=no` — 383 passed, 9 skipped (SQLite dev, 2026-05-25); `docs/BACKEND_PYTEST_DRIFT_CLOSURE_01.md` |
 | **Ride-flow UI proof** | **GO** | `docs/RIDE_FLOW_UI_PROOF_V0_2_STATUS.md` |
+| **Two-sided loop (code)** | **SHIPPED** | `docs/HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md` Phases 1–4 |
+| **Stable car API spine** | **GO** | `tests/test_stable_car_p0_01.py`, `scripts/owner_runbook_verify.py` |
+| **Simulated ride_payments** | **GO** | migration `0032`, `tests/test_ride_payment_phase3.py` |
+| **rider-app** | **SHIPPED** | Phase 1–3 — request, status, fare estimate, receipt, history |
+| **ops-app** | **SHIPPED** | Phase 4 — `tests/test_ops_phase4.py` |
+
+---
+
+## P0 gates (HALFAPP_AI_AGENT_COMPLETION_DIRECTIVES_01 — 2026-05-25)
+
+| Gate | Status | Report |
+|------|--------|--------|
+| **G1** Postgres claim-race | **PARTIAL_GO** | CI `alembic upgrade head` + claim-race; local PG proof pending — `P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md` |
+| **G2** OSRM runtime | **PARTIAL_GO** | Code path ready; owner runtime pending — `P0_G2_OSRM_RUNTIME_PROOF_01.md` |
+| **G7** Alembic on PostgreSQL | **PARTIAL_GO** | Audit + fixes + CI migrations; fresh PG proof pending — `P0_G7_ALEMBIC_POSTGRES_PROOF_01.md`, `ALEMBIC_POSTGRES_COMPATIBILITY_AUDIT_01.md` |
+| **G3** Owner courier day | **PENDING_OWNER** | `OWNER_COURIER_DAY_REPORT_01.md` |
+| **G4** Dossier Path A/B | **GO (decision only)** | `DOSSIER_PATH_DECISION_01.md` — recommend Path A; no execution |
+| **G5** Surface-freeze | **GO** | `P0_G5_SURFACE_FREEZE_REPORT_01.md` |
+| **G6** SYSTEM_TRUTH sync | **GO** | `P0_G6_SYSTEM_TRUTH_RECONCILIATION_REPORT_01.md` |
+
+**Overall P0:** **PARTIAL_GO** — owner runtime: G1 PG, G2 OSRM, G3 courier day; G7 PG proof (CI or local); then P1.1 (0036 push).
 
 ---
 
@@ -55,15 +80,33 @@ Do not modify claim-lock, lifecycle guards, approval gates, cascade logic, or pr
 
 ## Next executable work queue
 
-**P0:** Staging infra proof (`docs/STAGING_INFRA_PROOF_V0_1.md` — **NO_GO** until GATE-VPS-1) · OSRM runtime proof (Docker/VPS) · Postgres claim-race on Neon · internal owner-car test mode · dossier Path A vs B decision (document only)  
+**P0 (close gates):** G1 local PG proof · G2 `prove_osrm_runtime.py` exit 0 · G3 owner fills `OWNER_COURIER_DAY_REPORT_01.md` · G4 owner picks Path A or B
 
-**P1:** Notifications product UI · CORS/deploy observability · OpenAPI contract drift CI  
+**P1 (blocked until P0 GO):** Push (web) · stale presence policy · session E2E re-run
+
+**P1.3 Delivery vocabulary pass (extended):** **GO** — `docs/P1_3_DELIVERY_VOCABULARY_PASS_01.md`; extended to MapHome, DriverSettings, TripAuditReceipt, cockpit components (MarketplaceBottomSheet, DiagnosticsDrawer, RideChatPanel, EarningsVisibilityPanel, StreetIntelligencePanel); 150 npm tests pass; guards clean
+
+**Slice 9 — Trips & earnings polish:** **GO** — `docs/TRIPS_EARNINGS_POLISH_01.md`; delivery vocabulary complete across TripsList, Earnings, EarningsChart; EarningsChart already wired (not dormant); 150 npm tests pass; guards clean
+
+**Slice 5 — Notifications product UI:** **GO** — `docs/NOTIFICATIONS_PRODUCT_UI_01.md`; backend-only list, empty state, demo tab DEV-gated, AppShellLayout chrome; stale E2E heading assertion fixed; 150 npm tests pass
+
+**Slice 4 — Profile + settings shell:** **GO** — `docs/PROFILE_SETTINGS_SHELL_01.md`; vehicle/contact/session/preferences/app-profile all via `/drivers/*`; AppShellLayout; no mock data in prod; 150 npm tests pass
+
+**Slice 1 — Internal owner test mode:** **GO** — `docs/INTERNAL_OWNER_TEST_MODE_01.md`; BetaFirstRunAck + BetaTruthNotice gated to flag; simulation labels correct; owner runbook complete; prod build clean
+
+**Slice 8 — Deploy CORS/observability:** **GO** — `docs/DEPLOY_CORS_OBSERVABILITY_01.md`; CORS already hardened; new `RequestLoggingMiddleware` emits structured JSON with `request_id`/`driver_id`/`ride_id`; 7 new middleware tests pass
+
+**Slice 6 — Cockpit session resilience:** **GO (code+backend)** / **TODO (E2E run)** — `docs/COCKPIT_SESSION_RESILIENCE_01.md`; `GET /drivers/me/active-ride`, `useActiveRide`, `CockpitSkeleton`, `cockpit-resume-notice`, stale-presence banner all shipped; E2E `session-recovery.spec.ts` exists, owner runs against live stack
+
+**Slice 7 — Token session safety:** **GO** — `docs/TOKEN_SESSION_SAFETY_01.md`; refresh rotation (migration 0016), logout-all-devices, password-change auto-revoke; `test_auth_refresh_rotation.py` passes; `settings-logout-all-btn` shipped
+
+**Slice 10 — OpenAPI truth sync:** **GO** — `docs/OPENAPI_TRUTH_SYNC_01.md`; Ticket 1.3 fail-on-drift in CI (`truth-and-drift`); BACKLOG + CURRENT_TRUTH reconciled with all shipped slice reports; backend 390 passed, driver-app 150 passed
 
 **Product completion:** `docs/HALFAPP_DRIVER_PRODUCT_COMPLETION_SLICE_01.md` — **GO** (Settings + cockpit resume)  
 
-**Deferred:** External trusted-driver beta, beta onboarding, and public waitlist — see `docs/HALFAPP_DRIVER_PRODUCT_COMPLETION_ROADMAP_01.md`.  
+**Deferred:** External trusted-courier beta — `docs/HALFAPP_DRIVER_PRODUCT_COMPLETION_ROADMAP_01.md`.
 
-**P2:** PSP design or hard no-payout lock · rider app (after honesty gates) · full admin (after RBAC + route-surface proof)
+**P2 (one fork):** POD · merchant payload · real Stripe pilot — pick one after P0+P1
 
 Details: `docs/BACKLOG.md`.
 
@@ -73,8 +116,10 @@ Details: `docs/BACKLOG.md`.
 
 | Surface | Path |
 |---------|------|
-| Backend API | `backend/` — FastAPI driver/rider lifecycle spine |
-| Driver app | `driver-app/` — active driver cockpit |
+| Backend API | `backend/` — FastAPI courier + requester + ops |
+| Driver app | `driver-app/` — courier cockpit (3022) |
+| Rider app | `rider-app/` — requester (3023) |
+| Ops console | `ops-app/` — operator panel (3024) |
 
 Active entry points:
 
@@ -106,7 +151,8 @@ Active frontend product surface:
 
 | Surface | Status |
 |---------|--------|
-| `frontend/` | Legacy/inactive multi-role UI — **not** mounted on active API. See `frontend/README.md`. |
+| `frontend/` | **ARCHIVE · NOT WIRED · NOT PRODUCTION** — see `frontend/README.md` |
+| `rider-stub/` | **DEMO ONLY** — not a rider product; see `rider-stub/README.md` |
 | `video-gate/` | Unrelated video tooling — not ride-hailing product. |
 | Dormant routers | `routes/admin`, `routes/admin_access`, `routes/rides` (legacy), `routes/users`, `routes/test` — **not** in `main.py`. See `docs/DORMANT_ROUTERS_INVENTORY.md`. |
 | Dossier marketplace spine | `POST /supply/heartbeat`, `POST /demand/request`, `POST /trip/complete` — mounted for foundation/tests; **not** driver-app product truth. |
@@ -168,8 +214,9 @@ A **`route_snapshots`** table exists (foundation — migration `0010`). Driver U
 - **No production OSRM routing** — unless `SELF_HOSTED_ROUTING_PROOF_V0_2_STATUS` runtime verdict is **GO**.
 - **No live ETA product** — do not market turn-by-turn ETA as shipped truth.
 - **No commercial traffic APIs** — experimental regional traffic signals only; not Google/Mapbox traffic.
-- **No rider app UI** — rider side is API-only (`POST /rides/`, cancel).
-- **No nearest-driver matching** — open-board pool only; first claim wins.
+- **No production-grade requester product** — Phase 1–3 `rider-app` covers request, status, fare estimate, receipt on complete, and history; no merchant/order payload or real payment method UX yet.
+- **Simulated payments (Phase 3)** — `ride_payments` table tracks pending → authorized → captured per ride; no Stripe/PSP in the two-sided loop.
+- **No nearest-driver matching by default** — open-board pool by default; optional **`HALFAPP_AUTO_ASSIGN=1`** assigns nearest/first-available online driver on rider create (Phase 2).
 - **No city-scale mobility OS** — no multi-city ops, zones, airport rules, or fleet command center.
 - **No geocoding proof** — coordinates must be supplied; address labels are not proved locations.
 - **No dossier auto-match as driver-app dispatch** — open board on `/drivers/*` only.
@@ -341,7 +388,7 @@ The current MVP does not yet provide:
 - Driver-facing route snapshot browser / audit UI (table exists; UI does not).
 - **Runtime-proved** self-hosted OSRM in all environments (see routing status doc).
 - Geocoding from address strings with audit proof.
-- Rider mobile/web app, admin ops console on active API, or nearest-driver dispatch.
+- Production-grade requester mobile app, full admin ops console, or nearest-driver dispatch by default.
 - Driver-facing audit UI projections over ledger events (events exist; UI does not).
 - Structured observability (metrics/logging product) beyond existing health endpoints.
 - WebSocket real-time presence gateway.

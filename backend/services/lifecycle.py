@@ -51,6 +51,7 @@ class NotificationType(str, Enum):
 
 _ACTOR_DRIVER = "driver"
 _ACTOR_RIDER = "customer"
+_ACTOR_ADMIN = "admin"
 
 _TRANSITIONS = {
     (RideStatus.REQUESTED, RideAction.ACCEPT, _ACTOR_DRIVER): RideStatus.ACCEPTED,
@@ -61,6 +62,10 @@ _TRANSITIONS = {
     (RideStatus.ACCEPTED, RideAction.CANCEL, _ACTOR_RIDER): RideStatus.CANCELLED,
     (RideStatus.DRIVER_ARRIVED, RideAction.CANCEL, _ACTOR_RIDER): RideStatus.CANCELLED,
     (RideStatus.IN_PROGRESS, RideAction.CANCEL, _ACTOR_RIDER): RideStatus.CANCELLED,
+    (RideStatus.REQUESTED, RideAction.CANCEL, _ACTOR_ADMIN): RideStatus.CANCELLED,
+    (RideStatus.ACCEPTED, RideAction.CANCEL, _ACTOR_ADMIN): RideStatus.CANCELLED,
+    (RideStatus.DRIVER_ARRIVED, RideAction.CANCEL, _ACTOR_ADMIN): RideStatus.CANCELLED,
+    (RideStatus.IN_PROGRESS, RideAction.CANCEL, _ACTOR_ADMIN): RideStatus.CANCELLED,
 }
 
 

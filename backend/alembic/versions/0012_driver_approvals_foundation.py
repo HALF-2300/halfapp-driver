@@ -16,8 +16,7 @@ depends_on = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    conn.exec_driver_sql(
-        """
+    driver_approvals_sql = """
         CREATE TABLE IF NOT EXISTS driver_approvals (
             id INTEGER PRIMARY KEY,
             driver_id INTEGER NOT NULL UNIQUE,
@@ -32,7 +31,9 @@ def upgrade() -> None:
             CHECK (status IN ('pending', 'approved', 'rejected', 'suspended'))
         )
         """
-    )
+    if conn.dialect.name == "postgresql":
+        driver_approvals_sql = driver_approvals_sql.replace("DATETIME", "TIMESTAMP")
+    conn.exec_driver_sql(driver_approvals_sql)
     conn.exec_driver_sql(
         "CREATE INDEX IF NOT EXISTS ix_driver_approvals_driver_id ON driver_approvals (driver_id)"
     )

@@ -14,6 +14,10 @@ class RideDriverView(BaseModel):
     id: int
     rider_id: Optional[int] = None
     driver_id: Optional[int] = None
+    assigned_driver_name: Optional[str] = Field(
+        None,
+        description="Display name of assigned driver when driver_id is set",
+    )
     customer_name: str
     status: str = Field(..., description="Ride lifecycle status (storage contract)")
     v01_lifecycle_status: Optional[str] = Field(
@@ -86,6 +90,18 @@ class RideDriverView(BaseModel):
     )
     route_confidence: Optional[str] = Field(None, description="Route confidence label from backend")
     route_calculated_at: Optional[str] = Field(None, description="When route metadata was stamped")
+    route_source: Optional[str] = Field(
+        None,
+        description="Grounded route API label (e.g. osrm_v5) when road-network routing succeeded",
+    )
+    route_used_fallback: Optional[bool] = Field(
+        None,
+        description="True when haversine fallback was used instead of OSRM",
+    )
+    route_provider_confidence: Optional[float] = Field(
+        None,
+        description="0–1 confidence for AI route context when grounded",
+    )
     google_maps_fallback_enabled: bool = Field(False, description="Google routing fallback (off in v0.1)")
     mapbox_traffic_enabled: bool = Field(False, description="Mapbox Traffic (off in v0.1)")
 

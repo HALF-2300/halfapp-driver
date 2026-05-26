@@ -215,7 +215,7 @@ export default function TripsList() {
 
       title="Trips"
 
-      subtitle="Completed rides from the backend lifecycle assigned to this driver."
+      subtitle="Completed deliveries from the backend lifecycle assigned to this driver."
 
     >
 
@@ -250,7 +250,7 @@ export default function TripsList() {
                 resetFiltersPage()
                 setSearchQ(e.target.value)
               }}
-              placeholder="Pickup, dropoff, rider"
+              placeholder="Pickup, dropoff, customer"
               data-testid="trips-search-input"
             />
           </label>
@@ -297,7 +297,7 @@ export default function TripsList() {
             Export CSV
           </button>
           <span className="text-xs ha-truth-note self-center" data-testid="trips-total-count">
-            {loading ? 'Loading…' : `${total} trips`}
+            {loading ? 'Loading…' : `${total} deliveries`}
           </span>
         </div>
       </section>
@@ -308,7 +308,7 @@ export default function TripsList() {
 
           <div className="ha-stat">
 
-            <div className="ha-stat-label">Trips today</div>
+            <div className="ha-stat-label">Deliveries today</div>
 
             <div className="ha-stat-value">{summary.todayTrips}</div>
 
@@ -324,7 +324,7 @@ export default function TripsList() {
 
           <div className="ha-stat">
 
-            <div className="ha-stat-label">Total trips</div>
+            <div className="ha-stat-label">Total deliveries</div>
 
             <div className="ha-stat-value">{summary.totalTrips}</div>
 
@@ -352,23 +352,23 @@ export default function TripsList() {
 
       <section className="ha-section">
 
-        <h2 className="ha-section-title">Backend completed trips</h2>
+        <h2 className="ha-section-title">Completed deliveries</h2>
 
         {error ? <div className="ha-alert ha-alert--warn">{error}</div> : null}
 
         {loading ? (
 
-          <div className="ha-card ha-empty">Loading backend trips…</div>
+          <div className="ha-card ha-empty">Loading deliveries…</div>
 
         ) : completedTrips.length === 0 ? (
 
           <div className="ha-card ha-empty" data-testid="trips-empty">
 
-            <p>No trips yet.</p>
+            <p>No deliveries yet.</p>
 
             <p className="ha-truth-note mt-2">
 
-              Complete a backend ride from the cockpit and it will appear here.
+              Complete a job from the cockpit and it will appear here.
 
             </p>
 
@@ -413,7 +413,7 @@ export default function TripsList() {
 
                     <div className="text-[10px] uppercase tracking-wide" style={{ color: '#64748b' }}>
 
-                      Driver total payout · Completed
+                      Earnings record · Completed
 
                     </div>
 

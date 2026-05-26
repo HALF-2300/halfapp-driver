@@ -1,17 +1,18 @@
 # HalfApp Active Product Spine
 
-Status: Driver-Only MVP first. **Not** a complete mobility or city-scale ride-hailing OS.
+Status: **Driver-side execution system with supporting APIs.** Not a complete Lyft-like marketplace.
 
-Stage 0 truth boundary: `docs/PRODUCT_BOUNDARY_STAGE0.md` and `docs/CURRENT_TRUTH.md`.
+Authoritative classification: `docs/SYSTEM_TRUTH.md`  
+Stage 0 truth boundary: `docs/PRODUCT_BOUNDARY_STAGE0.md` and `docs/CURRENT_TRUTH.md`.  
+**Two-sided build order:** `docs/HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md`
 
-This repository currently contains multiple historical surfaces, but only two
-directories are active HalfApp ride-hailing product surface:
+This repository contains multiple historical surfaces that can look like a full marketplace. They are not. The active product spine:
 
 - `backend`
 - `driver-app`
+- `rider-app` (Phase 1 rider loop)
 
-Everything else is either supporting documentation, isolated tooling, generated
-artifact, dependency cache, or legacy/archive candidate.
+Everything else is supporting documentation, demo tooling, generated artifact, dependency cache, or legacy/archive.
 
 ## Active Surfaces
 
@@ -31,9 +32,11 @@ explicitly includes them and tests are added.
 
 ### `driver-app`
 
-React/Vite driver app. This is the only active frontend for the ride-hailing MVP.
-The cockpit, trips, and earnings screens must treat the backend as the source of
-truth for ride lifecycle and completed-trip earnings.
+React/Vite driver app. Supply-side cockpit for the ride loop.
+
+### `rider-app`
+
+React/Vite rider app (Phase 1). Demand-side: request ride, track status, cancel. See `rider-app/README.md`.
 
 Local browser storage may hold auth tokens and UI preferences. It must not be
 presented as real ride or earnings truth.
@@ -42,9 +45,11 @@ presented as real ride or earnings truth.
 
 ### `frontend`
 
-Legacy/inactive. See `frontend/README.md`. Not mounted on the active API; must not
-be used as evidence of rider/admin production readiness. Do not revive without an
-explicit separate migration order.
+**ARCHIVE · NOT WIRED · NOT PRODUCTION.** See `frontend/README.md`. Legacy multi-role UI; not mounted on the active API. Must not be used as evidence of rider or admin production readiness.
+
+### `rider-stub`
+
+**DEMO ONLY.** See `rider-stub/README.md`. Single-page API demo for staging smoke tests. Not a rider product.
 
 ### `video-gate`
 
@@ -78,9 +83,15 @@ admin operations.
 
 ## Out Of Scope For This Spine
 
-- Full rider-driver-admin marketplace expansion.
-- Real payments.
-- Complex nearest-driver/geospatial dispatch.
-- Double-entry accounting ledger.
-- Reviving the legacy `frontend`.
-- Integrating `video-gate` into the ride-hailing MVP.
+To reach Lyft-like functionality, these must be built as **products** (not API stubs or ledger code alone):
+
+- Rider app (demand-side UI)
+- Payments UX (checkout, capture, payout, disputes)
+- Ops/Admin console (control plane)
+
+Also out of scope until explicit orders:
+
+- Treating this repo as a two-sided marketplace today
+- Real nearest-driver/geospatial dispatch
+- Reviving the legacy `frontend/` as production surface
+- Integrating `video-gate` into the ride-hailing MVP

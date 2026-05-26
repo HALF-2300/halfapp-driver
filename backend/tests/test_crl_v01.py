@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -152,7 +153,7 @@ def test_admin_create_event_and_overview():
 
     with TestClient(app) as client:
         start = utc_now_naive()
-        end = start.replace(hour=min(start.hour + 2, 23))
+        end = start + timedelta(hours=2)
         created = client.post(
             "/admin/crl/events",
             headers=admin,

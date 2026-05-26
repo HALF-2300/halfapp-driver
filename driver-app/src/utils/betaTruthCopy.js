@@ -30,12 +30,12 @@ export const BETA_OBLIGATION_DETAIL =
 export const BETA_SETTLEMENT_SECTION_NOTE = 'Obligation recorded — not payout execution.'
 
 export const BETA_OPEN_BOARD_DISPATCH =
-  'Open board: rides appear to multiple drivers; first claim wins.'
+  'Open board: jobs are visible to multiple drivers; first claim wins.'
 
-export const BETA_CLAIM_CONFLICT_HEADLINE = 'Ride already claimed'
+export const BETA_CLAIM_CONFLICT_HEADLINE = 'Job already claimed'
 
 export const BETA_CLAIM_CONFLICT_BODY =
-  'Another driver accepted this ride first. Open board dispatch — first claim wins.'
+  'Another driver accepted this job first. Open board dispatch — first claim wins.'
 
 export const BETA_ROUTE_ESTIMATE_DISCLAIMER =
   'Route may be an estimate/fallback unless OSRM runtime proof is GO.'
@@ -50,16 +50,16 @@ export const BETA_ROAD_NETWORK_ROUTE = 'Road-network route'
 export const BETA_OSRM_NOT_PROVED = 'OSRM runtime not proved'
 
 export const BETA_SIMULATION_RIDE_LABEL =
-  'Beta ride / simulation ride — for product testing only.'
+  'Simulation job — for product testing only.'
 
-export const BETA_OPS_TEST_RIDE_LABEL = 'Ops-created test ride — for product testing only.'
+export const BETA_OPS_TEST_RIDE_LABEL = 'Ops-created test job — for product testing only.'
 
-export const BETA_COCKPIT_BANNER_TITLE = 'Trusted driver beta — comprehension only'
+export const BETA_COCKPIT_BANNER_TITLE = 'Driver cockpit — comprehension only'
 
 export const BETA_COCKPIT_BANNER_BODY =
-  'Operational truth beta: lifecycle, pricing ledger, and audit — not a marketplace launch or paid pilot.'
+  'Operational truth: lifecycle, pricing ledger, and audit — not a marketplace launch or paid pilot.'
 
-export const BETA_INCOMING_RIDE_EYEBROW = 'Incoming ride · open board'
+export const BETA_INCOMING_RIDE_EYEBROW = 'Incoming job · open board'
 
 export const BETA_INCOMING_ESTIMATE_LABEL = 'Est. test earnings'
 
@@ -68,7 +68,7 @@ export const BETA_INCOMING_ESTIMATE_HINT = '(not paid)'
 export const BETA_COMPLETED_TRIP_NOTE = BETA_OBLIGATION_DETAIL
 
 export const BETA_EARNINGS_SUBTITLE =
-  'Test earnings from completed backend rides — calculation records only, not payouts.'
+  'Calculation records from completed jobs — not payouts.'
 
 /** Payment execution visibility (Phase 4) — never imply paid/deposited. */
 export const BETA_PAYMENT_VISIBILITY_TITLE = 'Payment execution visibility'

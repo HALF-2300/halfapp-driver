@@ -13,6 +13,7 @@ import TripTruthDetails from './TripTruthDetails.jsx'
 import EarningsVisibilityPanel from '../EarningsVisibilityPanel.jsx'
 import RideChatPanel from './RideChatPanel.jsx'
 import RideNavigationPanel from './RideNavigationPanel.jsx'
+import RideAiDispatchPanel from './RideAiDispatchPanel.jsx'
 
 function cockpitBackendState(state) {
   if (state === DRIVER_STATES.ACCEPTED_TO_PICKUP) return 'accepted'
@@ -79,6 +80,7 @@ export default function MarketplaceBottomSheet(props) {
     sseFailed,
     lastCompletedRide,
     onDismissCompletedSummary,
+    rideAi,
   } = props
 
   const [expanded, setExpanded] = useState(false)
@@ -249,6 +251,16 @@ export default function MarketplaceBottomSheet(props) {
           title="Trip details"
         />
         {claimConflict && <ClaimConflictNotice />}
+        {rideAi ? (
+          <RideAiDispatchPanel
+            panelText={rideAi.panelText}
+            panelMeta={rideAi.panelMeta}
+            manualMode={rideAi.manualMode}
+            dispatchAiState={rideAi.dispatchAiState}
+            streaming={rideAi.streaming}
+            onReset={rideAi.onReset}
+          />
+        ) : null}
       </div>
     )
   } else if (
@@ -300,7 +312,7 @@ export default function MarketplaceBottomSheet(props) {
             disabled={loadingBackend}
             testId="release-ride-btn"
           >
-            Release ride to pool
+            Release job to pool
           </PrimaryRideActionButton>
         ) : null}
         {nextAction && (
@@ -321,6 +333,16 @@ export default function MarketplaceBottomSheet(props) {
           title="Trip details"
         />
         {backendError && <p className="text-[11px] text-amber-300 text-center">{backendError}</p>}
+        {rideAi ? (
+          <RideAiDispatchPanel
+            panelText={rideAi.panelText}
+            panelMeta={rideAi.panelMeta}
+            manualMode={rideAi.manualMode}
+            dispatchAiState={rideAi.dispatchAiState}
+            streaming={rideAi.streaming}
+            onReset={rideAi.onReset}
+          />
+        ) : null}
       </div>
     )
   } else {

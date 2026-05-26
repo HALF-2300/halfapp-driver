@@ -5,6 +5,8 @@ Prior: 2026-05-18
 
 Purpose: convert the HalfApp critical overview into an execution brief for the next coding agent. This is not a research document. It is an action plan for completing the program in the correct order.
 
+**Authoritative classification:** `docs/SYSTEM_TRUTH.md` — driver execution engine + partial backend; not a Lyft-like marketplace.
+
 Authoritative snapshot: `docs/HALFAPP_COMPREHENSIVE_PROGRAM_REPORT_03.md`.  
 Operational truth: `docs/CURRENT_TRUTH.md` · reconciled backlog: `docs/BACKLOG.md`.
 

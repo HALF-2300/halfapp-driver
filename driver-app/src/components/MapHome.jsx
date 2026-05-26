@@ -38,6 +38,9 @@ import DevActionDock from './cockpit/DevActionDock.jsx'
 import CockpitNetworkBanner from './CockpitNetworkBanner.jsx'
 import CockpitSkeleton from './cockpit/CockpitSkeleton.jsx'
 import { useActiveRide } from '../hooks/useActiveRide.js'
+import { useAiConnection } from '../hooks/useAiConnection.js'
+import { useRideAiDispatch } from '../hooks/useRideAiDispatch.js'
+import RideAiDispatchPanel from './cockpit/RideAiDispatchPanel.jsx'
 import { formatCurrency } from '../theme/halfAppTheme.js'
 import { driverPayoutDollars } from '../utils/ridePricingDisplay.js'
 import { isBackendClaimConflict } from '../utils/rideTransparency.js'
@@ -119,7 +122,12 @@ function backendRideToCockpitRide(ride) {
     generatedAt: ride.generated_at ?? null,
     status: mapBackendStatusToDriverState(ride.status),
     backendStatus: ride.status,
-    source: ride.lifecycle_reason === 'simulation' ? 'simulation' : 'backend',
+    source:
+      ride.lifecycle_reason === 'simulation'
+        ? 'simulation'
+        : ride.lifecycle_reason === 'auto_assigned'
+          ? 'auto_assigned'
+          : 'backend',
     dispatchExpiresAt: ride.dispatch_expires_at ?? null,
     dispatchTimeoutSeconds: ride.dispatch_timeout_seconds ?? 30,
     raw: ride,
@@ -161,6 +169,23 @@ export default function MapHome() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { preferences } = useDriverPreferences()
+  const authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('driver_token') : null
+  const {
+    canSendToModel,
+    connectToBackend: connectAiBackend,
+  } = useAiConnection({ token: authToken })
+
+  const rideAi = useRideAiDispatch({
+    authToken,
+    canSendToModel,
+    fetchRidePayment: (rideId) => driverAPI.getRidePayment(rideId),
+  })
+
+  useEffect(() => {
+    if (canSendToModel) return
+    connectAiBackend().catch(() => null)
+  }, [canSendToModel, connectAiBackend])
+
   const {
     activeRide: activeRidePayload,
     loading: activeRideLoading,
@@ -320,8 +345,26 @@ export default function MapHome() {
           eligible.sort((a, b) => Number(b.id) - Number(a.id))[0] ?? null
       }
       const selected = assigned || requested || null
-      const cockpitRide = backendRideToCockpitRide(selected)
+      let cockpitRide = null
+      if (selected) {
+        try {
+          cockpitRide = backendRideToCockpitRide(selected)
+        } catch {
+          cockpitRide = null
+        }
+      }
       if (refreshId !== refreshSeq.current) return
+
+      const currentActive = activeRideRef.current
+      if (
+        !cockpitRide &&
+        currentActive &&
+        ACTIVE_BACKEND_STATUSES.has(currentActive.backendStatus)
+      ) {
+        setEarningsSummary(earnings?.earnings_summary || null)
+        return
+      }
+
       setActiveRide(cockpitRide)
       setEarningsSummary(earnings?.earnings_summary || null)
 
@@ -346,7 +389,7 @@ export default function MapHome() {
     } catch (err) {
       if (refreshId !== refreshSeq.current) return
       setActiveRide(null)
-      setBackendError(err?.message || 'Backend ride lifecycle is unavailable')
+      setBackendError(err?.message || 'Backend job lifecycle is unavailable')
     } finally {
       if (refreshId === refreshSeq.current && !quiet) setLoadingBackend(false)
     }
@@ -355,6 +398,12 @@ export default function MapHome() {
   useEffect(() => {
     activeRideRef.current = activeRide
   }, [activeRide])
+
+  useEffect(() => {
+    if (status.state === DRIVER_STATES.REQUEST_INCOMING && activeRide) {
+      rideAi.onIncomingMatch(activeRide)
+    }
+  }, [status.state, activeRide?.rideId, rideAi.onIncomingMatch])
 
   const pickIncomingRideFromPool = useCallback((rides, excludeRideId = null) => {
     if (!Array.isArray(rides)) return null
@@ -437,7 +486,7 @@ export default function MapHome() {
       if (!hydrated) {
         if (prevRideId && prevBackendStatus && ACTIVE_BACKEND_STATUSES.has(prevBackendStatus)) {
           setBackendHideNotice(
-            'This ride was cancelled by the customer while you were offline.'
+            'This job was cancelled by the customer while you were offline.'
           )
           setActiveRide(null)
           setResumeNotice(null)
@@ -450,6 +499,7 @@ export default function MapHome() {
         await refreshBackendTruth(true, { quiet: true })
         return
       }
+      activeRideRef.current = hydrated.ride
       setActiveRide(hydrated.ride)
       setStatus(hydrated.state)
       if (
@@ -495,6 +545,7 @@ export default function MapHome() {
         }
         const hydrated = hydrateFromActiveRidePayload(activeRidePayload)
         if (hydrated) {
+          activeRideRef.current = hydrated.ride
           setActiveRide(hydrated.ride)
           setStatus(hydrated.state)
           setResumeNotice(hydrated.resume)
@@ -529,6 +580,24 @@ export default function MapHome() {
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [refreshBackendTruth])
+
+  useEffect(() => {
+    if (!status.online || activeRide) return undefined
+    const interval = window.setInterval(async () => {
+      try {
+        const payload = await refetchActiveRide()
+        const hydrated = hydrateFromActiveRidePayload(payload)
+        if (hydrated) {
+          activeRideRef.current = hydrated.ride
+          setActiveRide(hydrated.ride)
+          setStatus(hydrated.state)
+        }
+      } catch {
+        /* polling is best-effort */
+      }
+    }, 4000)
+    return () => window.clearInterval(interval)
+  }, [status.online, activeRide, refetchActiveRide])
 
   const goOnline = useCallback(async () => {
     if (!driverApproved) {
@@ -594,8 +663,9 @@ export default function MapHome() {
       const ride = backendRideToCockpitRide(response?.ride)
       setActiveRide(ride)
       setStatus({ state: DRIVER_STATES.REQUEST_INCOMING, online: true })
+      rideAi.onIncomingMatch(ride)
     } catch (err) {
-      setBackendError(err?.message || 'Could not create simulation ride')
+      setBackendError(err?.message || 'Could not create simulation job')
     } finally {
       setLoadingBackend(false)
     }
@@ -614,6 +684,7 @@ export default function MapHome() {
       const ride = backendRideToCockpitRide(response?.ride)
       setActiveRide(ride)
       setStatus({ state: DRIVER_STATES.ACCEPTED_TO_PICKUP, online: true })
+      rideAi.onDriverAccept(ride)
     } catch (err) {
       const structuredConflict =
         err?.status === 409 && isBackendClaimConflict(err?.detail)
@@ -650,6 +721,7 @@ export default function MapHome() {
   const declineRide = useCallback(
     async (options = {}) => {
       if (!activeRide) return
+      rideAi.onDriverDecline(activeRide)
       setLoadingBackend(true)
       setBackendError(null)
       setBackendHideNotice(null)
@@ -665,17 +737,17 @@ export default function MapHome() {
         setStatus({ state: DRIVER_STATES.ONLINE_IDLE, online: true })
         if (options.reason !== 'dispatch_timeout') {
           setBackendHideNotice(
-            'Offer declined. The ride may be sent to another eligible driver.'
+            'Offer declined. The job may be sent to another eligible driver.'
           )
         }
         await refreshBackendTruth(true)
       } catch (err) {
-        setBackendError(err?.message || 'Could not decline ride')
+        setBackendError(err?.message || 'Could not decline job')
       } finally {
         setLoadingBackend(false)
       }
     },
-    [activeRide, refreshBackendTruth]
+    [activeRide, refreshBackendTruth, rideAi.onDriverDecline]
   )
 
   useEffect(() => {
@@ -753,6 +825,7 @@ export default function MapHome() {
       if (next.next === DRIVER_STATES.ARRIVED_PICKUP) {
         response = await driverAPI.arrivePickup(activeRide.rideId)
       } else if (next.next === DRIVER_STATES.IN_PROGRESS) {
+        rideAi.onTripStart(activeRide)
         response = await driverAPI.startRide(activeRide.rideId)
       } else if (next.next === DRIVER_STATES.COMPLETED) {
         response = await driverAPI.completeRide(activeRide.rideId)
@@ -761,6 +834,7 @@ export default function MapHome() {
       if (next.next === DRIVER_STATES.COMPLETED) {
         const completedRide = response?.ride || activeRide.raw
         const cockpitCompleted = backendRideToCockpitRide(completedRide)
+        await rideAi.onTripComplete({ ...cockpitCompleted, raw: completedRide })
         const fare =
           response?.fare_earned ??
           driverPayoutDollars(completedRide) ??
@@ -786,11 +860,11 @@ export default function MapHome() {
       setStatus({ state: next.next, online: true })
     } catch (err) {
       if (isTransientNetworkError(err)) markNetworkDegraded()
-      setBackendError(err?.message || 'Could not advance ride')
+      setBackendError(err?.message || 'Could not advance job')
     } finally {
       setLoadingBackend(false)
     }
-  }, [activeRide, refreshBackendTruth, status.state, markNetworkDegraded, clearNetworkDegraded])
+  }, [activeRide, refreshBackendTruth, status.state, markNetworkDegraded, clearNetworkDegraded, rideAi])
 
   const handleLogout = useCallback(() => {
     logout()
@@ -799,6 +873,7 @@ export default function MapHome() {
 
   const stateMeta = STATE_LABELS[status.state] ?? STATE_LABELS[DRIVER_STATES.OFFLINE]
   const isOnline = status.online && status.state !== DRIVER_STATES.OFFLINE
+  const isAutoAssigned = activeRide?.raw?.lifecycle_reason === 'auto_assigned'
   const onlineToggleDisabled = !driverApproved || (!!activeRide && isOnline)
 
   useEffect(() => {
@@ -1022,6 +1097,14 @@ export default function MapHome() {
             </div>
           </div>
         )}
+        {isAutoAssigned && activeRide ? (
+          <div
+            className="mx-3 mt-2 rounded-xl border border-cyan-500/50 bg-cyan-950/80 px-3 py-2 text-xs text-cyan-100"
+            data-testid="auto-assignment-notice"
+          >
+            Ride auto-assigned to you — no need to scan the open board. Head to pickup when ready.
+          </div>
+        ) : null}
       </div>
 
       <CityRealityPanel
@@ -1115,6 +1198,7 @@ export default function MapHome() {
           sseFailed={sseFailed}
           lastCompletedRide={lastCompletedRide}
           onDismissCompletedSummary={() => setLastCompletedRide(null)}
+          rideAi={rideAi}
         />
       )}
 

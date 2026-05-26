@@ -7,7 +7,8 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from models.sil_cell_aggregate import SilCellAggregate
-from services.sil_compute import compute_sil_bucket, confidence_band
+from services.sil_compute import confidence_band
+from services.sil_snapshot import SilSource, resolve_sil_bucket
 from services.sil_gates import (
     busy_layer_min_k_met,
     cell_passes_confidence,
@@ -45,8 +46,8 @@ def build_sil_map_response(
     bucket_minutes: int = 5,
     layers: str = "busy,slow",
     min_conf: float = 0.4,
-) -> dict:
-    bucket_start = compute_sil_bucket(
+) -> tuple[dict, SilSource]:
+    bucket_start, source = resolve_sil_bucket(
         db, window_minutes=window_minutes, bucket_minutes=bucket_minutes
     )
     layer_set = {s.strip().lower() for s in layers.split(",") if s.strip()}
@@ -105,21 +106,24 @@ def build_sil_map_response(
 
         cells_out.append(cell_payload)
 
-    return {
-        "bucket_start_ts": bucket_start.isoformat() + "Z",
-        "bucket_minutes": bucket_minutes,
-        "window_minutes": window_minutes,
-        "label_version": LABEL_VERSION,
-        "disclaimer": SIL_MAP_DISCLAIMER,
-        "labels": {
-            "busy": BUSY_LAYER_LABEL,
-            "slow": SLOW_LAYER_LABEL,
+    return (
+        {
+            "bucket_start_ts": bucket_start.isoformat() + "Z",
+            "bucket_minutes": bucket_minutes,
+            "window_minutes": window_minutes,
+            "label_version": LABEL_VERSION,
+            "disclaimer": SIL_MAP_DISCLAIMER,
+            "labels": {
+                "busy": BUSY_LAYER_LABEL,
+                "slow": SLOW_LAYER_LABEL,
+            },
+            "thresholds": thresholds(),
+            "cells": cells_out,
+            "not_enough_data_areas": not_enough,
+            "layers": sorted(layer_set),
         },
-        "thresholds": thresholds(),
-        "cells": cells_out,
-        "not_enough_data_areas": not_enough,
-        "layers": sorted(layer_set),
-    }
+        source,
+    )
 
 
 def build_sil_suggest_response(
@@ -127,8 +131,8 @@ def build_sil_suggest_response(
     *,
     driver_h3: str,
     horizon_minutes: int = 15,
-) -> dict:
-    compute_sil_bucket(db, window_minutes=30, bucket_minutes=5)
+) -> tuple[dict, SilSource]:
+    _, source = resolve_sil_bucket(db, window_minutes=30, bucket_minutes=5)
     rows = (
         db.query(SilCellAggregate)
         .order_by(SilCellAggregate.busy_score.desc())
@@ -155,8 +159,11 @@ def build_sil_suggest_response(
         if len(suggestions) >= 5:
             break
 
-    return {
-        "horizon_minutes": horizon_minutes,
-        "suggestions": suggestions,
-        "label_version": LABEL_VERSION,
-    }
+    return (
+        {
+            "horizon_minutes": horizon_minutes,
+            "suggestions": suggestions,
+            "label_version": LABEL_VERSION,
+        },
+        source,
+    )

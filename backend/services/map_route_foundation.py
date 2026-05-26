@@ -12,7 +12,37 @@ from config import (
 )
 from models.ride import Ride
 from services.datetime_utils import utc_now_naive
-from services.routing_service import RouteEstimate
+from services.routing_service import HAVERSINE_FALLBACK_PROVIDER, RouteEstimate
+
+
+def route_source_label(route_provider: Optional[str], *, used_fallback: bool) -> Optional[str]:
+    if used_fallback or not route_provider:
+        return None
+    provider = str(route_provider).lower()
+    if "osrm" in provider:
+        return "osrm_v5"
+    if "mapbox" in provider:
+        return "mapbox_directions_v5"
+    if "google" in provider:
+        return "google_routes_v2"
+    return route_provider
+
+
+def route_provider_used_fallback(route_provider: Optional[str]) -> bool:
+    if not route_provider:
+        return True
+    return str(route_provider).strip().lower() == HAVERSINE_FALLBACK_PROVIDER
+
+
+def confidence_score(route_confidence: Optional[str], *, used_fallback: bool) -> Optional[float]:
+    if used_fallback:
+        return None
+    label = (route_confidence or "medium").strip().lower()
+    if label == "high":
+        return 0.95
+    if label == "low":
+        return 0.65
+    return 0.91
 
 V01_ROUTE_PROVIDER = ROUTING_PROVIDER or "osrm_self_hosted"
 V01_MAP_DISPLAY_PROVIDER = MAP_DISPLAY_PROVIDER or "current_osm_leaflet"
@@ -63,13 +93,18 @@ def stamp_route_calculated(ride: Ride) -> None:
 def map_foundation_dict(ride: Ride) -> dict:
     apply_map_foundation_defaults(ride)
     calculated = ride.route_calculated_at
+    provider = ride.route_provider or V01_ROUTE_PROVIDER
+    used_fallback = route_provider_used_fallback(provider)
     return {
-        "route_provider": ride.route_provider or V01_ROUTE_PROVIDER,
+        "route_provider": provider,
         "traffic_provider": ride.traffic_provider or V01_TRAFFIC_PROVIDER,
         "traffic_aware": bool(ride.traffic_aware),
         "traffic_signal_aware": bool(ride.traffic_signal_aware),
         "route_confidence": ride.route_confidence,
         "route_calculated_at": calculated.isoformat() + "Z" if calculated else None,
+        "route_source": route_source_label(provider, used_fallback=used_fallback),
+        "route_used_fallback": used_fallback,
+        "route_provider_confidence": confidence_score(ride.route_confidence, used_fallback=used_fallback),
         "google_maps_fallback_enabled": bool(ride.google_maps_fallback_enabled),
         "mapbox_traffic_enabled": bool(ride.mapbox_traffic_enabled),
         "map_display_provider": V01_MAP_DISPLAY_PROVIDER,

@@ -2,8 +2,7 @@
 HALFAPP_POSTGRES_CLAIM_RACE_PROOF_01 — ten-driver accept race on real PostgreSQL.
 
 Requires DATABASE_URL=postgresql+psycopg2://... before pytest starts.
-Alembic revisions use SQLite PRAGMA; PostgreSQL schema is created via ORM create_all
-when main loads (see _patch_run_migrations_for_postgres below).
+Schema must come from ``alembic upgrade head`` (see test_alembic_postgres_upgrade_head).
 """
 
 from __future__ import annotations
@@ -17,13 +16,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func
 
-from database import Base, SessionLocal, engine
+from database import SessionLocal, engine
 
 import models.dossier_marketplace  # noqa: F401
 import models.driver_approval  # noqa: F401
 import models.driver_status  # noqa: F401
 import models.ledger  # noqa: F401
 import models.metrics  # noqa: F401
+import models.payment  # noqa: F401
 import models.presence  # noqa: F401
 import models.pricing_policy  # noqa: F401
 import models.ride  # noqa: F401
@@ -33,36 +33,6 @@ import models.route_snapshot  # noqa: F401
 import models.settlement_entry  # noqa: F401
 import models.user  # noqa: F401
 import routes.notifications  # noqa: F401
-
-import migrations as migrations_module
-
-_CLAIM_LOST_ATTEMPT_OUTCOMES = frozenset({"conflict", "lost", "unavailable"})
-
-
-def _patch_run_migrations_for_postgres() -> None:
-    if getattr(migrations_module, "_HALFAPP_ORIGINAL_RUN_MIGRATIONS", None) is None:
-        migrations_module._HALFAPP_ORIGINAL_RUN_MIGRATIONS = migrations_module.run_migrations
-
-    def _strip_sqlite_boolean_checks() -> None:
-        """SQLite-oriented CHECK (col IN (0,1)) is invalid on PostgreSQL BOOLEAN columns."""
-        for table in Base.metadata.tables.values():
-            table.constraints = {
-                c
-                for c in table.constraints
-                if " IN (0, 1)" not in str(getattr(c, "sqltext", ""))
-            }
-
-    def _run_migrations(engine):
-        if engine.dialect.name == "postgresql":
-            _strip_sqlite_boolean_checks()
-            Base.metadata.create_all(bind=engine)
-            return
-        migrations_module._HALFAPP_ORIGINAL_RUN_MIGRATIONS(engine)
-
-    migrations_module.run_migrations = _run_migrations
-
-
-_patch_run_migrations_for_postgres()
 
 from main import app  # noqa: E402
 
@@ -74,6 +44,7 @@ from services.auth import create_access_token, create_user
 from services.ledger import MarketplaceLedgerEventType
 
 pytestmark = [
+    pytest.mark.claim_race,
     pytest.mark.postgres_claim_race_proof,
     pytest.mark.skipif(
         not os.environ.get("DATABASE_URL", "").startswith("postgresql"),
@@ -82,6 +53,7 @@ pytestmark = [
 ]
 
 COMPETING_DRIVER_COUNT = 10
+_CLAIM_LOST_ATTEMPT_OUTCOMES = ("conflict", "unavailable")
 
 
 def _redact_database_url(url: str) -> str:

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from models.crl_cell_explanation import CrlCellExplanation
 from models.crl_cell_snapshot import CrlCellSnapshot
-from services.crl_compute import compute_crl_bucket
+from services.crl_snapshot import CrlSource, resolve_crl_bucket
 from services.crl_labels import CRL_DISCLAIMER, CRL_OPERATOR_DISCLAIMER, NOT_ENOUGH_DATA_LABEL
 from services.sil_h3 import cell_to_lat_lng
 
@@ -16,8 +16,8 @@ def build_crl_map_response(
     *,
     window_minutes: int = 30,
     min_conf: float = 0.4,
-) -> dict:
-    bucket_start = compute_crl_bucket(db, window_minutes=window_minutes)
+) -> tuple[dict, CrlSource]:
+    bucket_start, source = resolve_crl_bucket(db, window_minutes=window_minutes)
     snaps = (
         db.query(CrlCellSnapshot)
         .filter(CrlCellSnapshot.bucket_start_ts == bucket_start)
@@ -55,18 +55,21 @@ def build_crl_map_response(
             }
         )
 
-    return {
-        "bucket_start_ts": bucket_start.isoformat() + "Z",
-        "window_minutes": window_minutes,
-        "disclaimer": CRL_DISCLAIMER,
-        "cells": cells_out,
-        "not_enough_data_areas": not_enough,
-        "not_enough_data_label": NOT_ENOUGH_DATA_LABEL,
-    }
+    return (
+        {
+            "bucket_start_ts": bucket_start.isoformat() + "Z",
+            "window_minutes": window_minutes,
+            "disclaimer": CRL_DISCLAIMER,
+            "cells": cells_out,
+            "not_enough_data_areas": not_enough,
+            "not_enough_data_label": NOT_ENOUGH_DATA_LABEL,
+        },
+        source,
+    )
 
 
-def build_crl_explain_response(db: Session, *, h3_cell: str) -> dict | None:
-    compute_crl_bucket(db)
+def build_crl_explain_response(db: Session, *, h3_cell: str) -> tuple[dict | None, CrlSource]:
+    _, source = resolve_crl_bucket(db)
     expl = (
         db.query(CrlCellExplanation)
         .filter(CrlCellExplanation.h3 == h3_cell)
@@ -80,28 +83,34 @@ def build_crl_explain_response(db: Session, *, h3_cell: str) -> dict | None:
         .first()
     )
     if not expl or not snap:
-        return None
+        return None, source
     if not snap.min_k_met:
-        return {
+        return (
+            {
+                "h3": h3_cell,
+                "not_enough_data": True,
+                "label": NOT_ENOUGH_DATA_LABEL,
+                "disclaimer": CRL_DISCLAIMER,
+            },
+            source,
+        )
+
+    return (
+        {
             "h3": h3_cell,
-            "not_enough_data": True,
-            "label": NOT_ENOUGH_DATA_LABEL,
+            "primary_cause": expl.primary_cause,
+            "secondary_causes": json_load_list(expl.secondary_causes_json),
+            "signals_used": json_load_dict(expl.signals_used_json),
+            "confidence": round(float(expl.confidence), 3),
+            "label": expl.driver_label,
             "disclaimer": CRL_DISCLAIMER,
-        }
-
-    return {
-        "h3": h3_cell,
-        "primary_cause": expl.primary_cause,
-        "secondary_causes": json_load_list(expl.secondary_causes_json),
-        "signals_used": json_load_dict(expl.signals_used_json),
-        "confidence": round(float(expl.confidence), 3),
-        "label": expl.driver_label,
-        "disclaimer": CRL_DISCLAIMER,
-    }
+        },
+        source,
+    )
 
 
-def build_crl_admin_overview(db: Session) -> dict:
-    bucket_start = compute_crl_bucket(db)
+def build_crl_admin_overview(db: Session) -> tuple[dict, CrlSource]:
+    bucket_start, source = resolve_crl_bucket(db)
     explains = (
         db.query(CrlCellExplanation)
         .filter(CrlCellExplanation.bucket_start_ts == bucket_start)
@@ -125,12 +134,15 @@ def build_crl_admin_overview(db: Session) -> dict:
         for e in explains
         if e.confidence >= 0.6
     ][:20]
-    return {
-        "bucket_start_ts": bucket_start.isoformat() + "Z",
-        "disclaimer": CRL_OPERATOR_DISCLAIMER,
-        "cause_breakdown": breakdown,
-        "anomaly_cells": anomaly,
-    }
+    return (
+        {
+            "bucket_start_ts": bucket_start.isoformat() + "Z",
+            "disclaimer": CRL_OPERATOR_DISCLAIMER,
+            "cause_breakdown": breakdown,
+            "anomaly_cells": anomaly,
+        },
+        source,
+    )
 
 
 def json_load_list(raw: str | None) -> list:

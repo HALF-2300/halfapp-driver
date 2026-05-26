@@ -298,14 +298,14 @@ export default function DriverSettings() {
               />
               <Field label="Online (cockpit)" value={meStatus?.online ? 'Yes' : 'No'} />
               <Field
-                label="Active ride (backend)"
+                label="Active job (backend)"
                 value={activeRideId != null ? `#${activeRideId}` : 'None'}
                 testId="settings-active-ride-id"
               />
               <Field label="Last seen" value={formatSeenAt(meStatus?.last_seen_at)} />
               <p className="text-xs ha-truth-note">
                 Sign out revokes refresh tokens on the server when connected. Use cockpit to finish an
-                active ride before going offline.
+                active job before going offline.
               </p>
             </div>
           </section>

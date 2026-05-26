@@ -193,6 +193,10 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line(
         "markers",
+        "claim_race: P0-G1 PostgreSQL ten-driver accept race (requires DATABASE_URL=postgresql+...)",
+    )
+    config.addinivalue_line(
+        "markers",
         "postgres_claim_race_proof: HALFAPP_POSTGRES_CLAIM_RACE_PROOF_01 — requires DATABASE_URL=postgresql+...",
     )
 

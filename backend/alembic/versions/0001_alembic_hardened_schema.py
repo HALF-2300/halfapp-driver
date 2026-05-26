@@ -6,7 +6,11 @@ Create Date: 2026-05-18 10:38:00
 """
 from __future__ import annotations
 
+import re
+
 from alembic import op
+
+from db_migration_helpers import is_postgresql, table_exists
 
 
 revision = "0001_alembic_hardened_schema"
@@ -25,6 +29,39 @@ TABLE_ORDER = (
     "rides",
     "users",
 )
+
+
+def _strip_check_constraints(statement: str) -> str:
+    """Remove inline CHECK (...) clauses from a CREATE TABLE statement.
+
+    This migration keeps SQLite-friendly CHECK constraints in the source SQL, but for
+    PostgreSQL we strip them out. We can't use a naive regex because CHECK clauses may
+    contain nested parentheses (e.g. IN (0, 1)).
+    """
+
+    marker = " CHECK "
+    while True:
+        idx = statement.find(marker)
+        if idx == -1:
+            return statement
+        open_paren = statement.find("(", idx)
+        if open_paren == -1:
+            return statement
+        depth = 0
+        close_paren = None
+        for j in range(open_paren, len(statement)):
+            ch = statement[j]
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    close_paren = j
+                    break
+        if close_paren is None:
+            return statement
+        # Drop: " CHECK (<balanced>)"
+        statement = statement[:idx] + statement[close_paren + 1 :]
 
 
 def _table_exists(conn, table: str) -> bool:
@@ -247,7 +284,26 @@ def _create_schema(conn) -> None:
         "CREATE TRIGGER IF NOT EXISTS trg_marketplace_ledger_no_delete BEFORE DELETE ON marketplace_ledger BEGIN SELECT RAISE(ABORT, 'marketplace_ledger is append-only'); END",
     ]
     for statement in statements:
+        if is_postgresql(conn):
+            if "CREATE TRIGGER" in statement:
+                continue
+            statement = _strip_check_constraints(statement)
+            statement = statement.replace(
+                "BOOLEAN NOT NULL DEFAULT 1", "BOOLEAN NOT NULL DEFAULT true"
+            ).replace("BOOLEAN NOT NULL DEFAULT 0", "BOOLEAN NOT NULL DEFAULT false")
+            statement = re.sub(r"\bDATETIME\b", "TIMESTAMP", statement)
+            if "CREATE TABLE" in statement:
+                statement = statement.replace("INTEGER PRIMARY KEY", "SERIAL PRIMARY KEY", 1)
+                # If a trailing CHECK(...) was removed, we may end up with a dangling comma.
+                statement = re.sub(r",\s*\n(\s*\))", r"\n\1", statement)
         conn.exec_driver_sql(statement)
+
+
+def _upgrade_postgresql_fresh(conn) -> None:
+    """Greenfield PostgreSQL: create hardened schema without SQLite PRAGMA/triggers."""
+    if table_exists(conn, "users"):
+        return
+    _create_schema(conn)
 
 
 def _copy_existing_data(conn, renamed: dict[str, str]) -> None:
@@ -430,6 +486,9 @@ def _copy_existing_data(conn, renamed: dict[str, str]) -> None:
 
 def upgrade() -> None:
     conn = op.get_bind()
+    if is_postgresql(conn):
+        _upgrade_postgresql_fresh(conn)
+        return
     conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
     renamed = _rename_existing_tables(conn)
     _create_schema(conn)

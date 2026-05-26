@@ -41,3 +41,8 @@ class RiderRideResponse(BaseModel):
     message: str
     ride: RideDriverView
     create_request_contract: RideCreateRequest | None = None
+
+
+class RiderRidesListResponse(BaseModel):
+    message: str
+    rides: list[RideDriverView]

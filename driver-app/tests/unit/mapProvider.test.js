@@ -11,12 +11,18 @@ import {
 } from '../../src/services/mapProvider.js'
 
 describe('mapProvider v0.1', () => {
-  it('defaults to OSM display without Google or Mapbox traffic', () => {
+  it('defaults to OSM-based display without Google or Mapbox traffic', () => {
     assert.equal(GOOGLE_MAPS_FALLBACK_ENABLED, false)
     assert.equal(MAPBOX_TRAFFIC_ENABLED, false)
     assert.equal(TRAFFIC_PROVIDER, 'none')
     const cfg = getMapDisplayConfig()
-    assert.ok(cfg.tileUrl.includes('openstreetmap'))
+    // default is carto_voyager (OSM data, Carto rendering) — no Google/Mapbox tile providers
+    assert.ok(
+      cfg.tileUrl.includes('openstreetmap') || cfg.tileUrl.includes('carto'),
+      `Expected OSM-based tile URL, got: ${cfg.tileUrl}`
+    )
+    assert.ok(!cfg.tileUrl.includes('mapbox'), 'Mapbox tiles must not be the default')
+    assert.ok(!cfg.tileUrl.includes('googleapis'), 'Google tiles must not be the default')
   })
 
   it('route placeholder does not enable paid providers', async () => {

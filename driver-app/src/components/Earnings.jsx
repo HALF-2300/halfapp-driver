@@ -33,16 +33,20 @@ function formatCompletedAt(value) {
 
 export default function Earnings() {
   const [earnings, setEarnings] = useState(null)
+  const [ridePayments, setRidePayments] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const fetchEarnings = useCallback(() => {
     setLoading(true)
     setError(null)
-    driverAPI
-      .getEarnings()
-      .then((data) => {
+    Promise.all([
+      driverAPI.getEarnings(),
+      driverAPI.getRidePayments().catch(() => null),
+    ])
+      .then(([data, payments]) => {
         setEarnings(data || null)
+        setRidePayments(payments)
       })
       .catch((err) => {
         setEarnings(null)
@@ -95,7 +99,7 @@ export default function Earnings() {
           ) : null}
           <p className="text-xs mt-2" style={{ color: 'rgba(191, 219, 254, 0.85)' }}>
             Across {summary.total_rides_completed || 0} completed{' '}
-            {(summary.total_rides_completed || 0) === 1 ? 'trip' : 'trips'}
+            {(summary.total_rides_completed || 0) === 1 ? 'job' : 'jobs'}
           </p>
         </div>
 
@@ -104,14 +108,34 @@ export default function Earnings() {
             <div className="ha-stat-label">Today</div>
             <div className="ha-stat-value">${todayStr}</div>
             <div className="ha-stat-meta">
-              {summary.today_rides || 0} {(summary.today_rides || 0) === 1 ? 'trip' : 'trips'}
+              {summary.today_rides || 0} {(summary.today_rides || 0) === 1 ? 'job' : 'jobs'}
             </div>
           </div>
           <div className="ha-stat">
             <div className="ha-stat-label">Last 7 days</div>
             <div className="ha-stat-value">${weeklyStr}</div>
-            <div className="ha-stat-meta">{summary.weekly_rides || 0} rides</div>
+            <div className="ha-stat-meta">{summary.weekly_rides || 0} jobs</div>
           </div>
+        </div>
+      </section>
+
+      <section className="ha-section">
+        <div className="ha-card" data-testid="ride-payments-summary">
+          <div className="ha-stat-label">Simulated payment records</div>
+          {ridePayments ? (
+            <>
+              <p className="text-2xl font-semibold mt-2" style={{ color: 'var(--ha-text)' }}>
+                ${((ridePayments.total_captured_cents || 0) / 100).toFixed(2)}
+              </p>
+              <p className="ha-truth-note mt-1">
+                Captured payment records from <code>GET /drivers/me/ride-payments</code> — simulated, not bank payout.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm mt-2" style={{ color: 'var(--ha-muted)' }}>
+              No captured ride payments yet.
+            </p>
+          )}
         </div>
       </section>
 
@@ -150,14 +174,14 @@ export default function Earnings() {
       </section>
 
       <section className="ha-section">
-        <h2 className="ha-section-title">Recent backend trips</h2>
+        <h2 className="ha-section-title">Recent deliveries</h2>
         {loading ? (
           <div className="ha-card ha-empty">Loading backend earnings…</div>
         ) : recent.length === 0 ? (
           <div className="ha-card ha-empty" data-testid="earnings-no-recent">
-            <p>No completed trips yet.</p>
+            <p>No completed jobs yet.</p>
             <p className="ha-truth-note mt-2">
-              Complete a backend ride from the cockpit and it will appear here.
+              Complete a job from the cockpit and it will appear here.
             </p>
           </div>
         ) : (
@@ -170,7 +194,7 @@ export default function Earnings() {
                     <div className="text-xs" style={{ color: 'var(--ha-muted)' }}>
                       {formatCompletedAt(trip.completed_at)}
                     </div>
-                    <div className="text-xs ha-truth-note">Ride #{trip.id} · driver earnings</div>
+                    <div className="text-xs ha-truth-note">Job #{trip.id} · your earnings record</div>
                   </div>
                   <div
                     className="text-right font-semibold"

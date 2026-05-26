@@ -8,6 +8,12 @@ from __future__ import annotations
 
 from alembic import op
 
+from db_migration_helpers import (
+    create_sqlite_append_only_triggers,
+    insert_seed_ignore,
+    try_create_postgis_extension,
+)
+
 
 revision = "0006_dossier_dispatch_ledger_foundation"
 down_revision = "0005_marketplace_ledger_events_foundation"
@@ -19,15 +25,21 @@ def _dialect_name() -> str:
     return op.get_bind().dialect.name
 
 
+def _pg_compat_ddl(sql: str) -> str:
+    # Minimal SQLite->Postgres DDL normalization for early foundation tables.
+    sql = sql.replace("DATETIME", "TIMESTAMP")
+    sql = sql.replace("REAL", "DOUBLE PRECISION")
+    sql = sql.replace("id INTEGER PRIMARY KEY", "id SERIAL PRIMARY KEY")
+    return sql
+
+
 def upgrade() -> None:
     conn = op.get_bind()
     is_postgres = _dialect_name() == "postgresql"
 
-    if is_postgres:
-        conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS postgis")
+    has_postgis = try_create_postgis_extension(conn) if is_postgres else False
 
-    conn.exec_driver_sql(
-        """
+    active_drivers_sql = """
         CREATE TABLE IF NOT EXISTS active_drivers (
             id TEXT PRIMARY KEY,
             status TEXT NOT NULL DEFAULT 'OFFLINE',
@@ -46,9 +58,9 @@ def upgrade() -> None:
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    )
+    conn.exec_driver_sql(_pg_compat_ddl(active_drivers_sql) if is_postgres else active_drivers_sql)
 
-    if is_postgres:
+    if is_postgres and has_postgis:
         conn.exec_driver_sql(
             """
             ALTER TABLE active_drivers
@@ -71,8 +83,7 @@ def upgrade() -> None:
         "ON active_drivers (status, vehicle_type)"
     )
 
-    conn.exec_driver_sql(
-        """
+    trip_lifecycle_sql = """
         CREATE TABLE IF NOT EXISTS trip_lifecycle_events (
             id INTEGER PRIMARY KEY,
             trip_id TEXT NOT NULL,
@@ -86,14 +97,13 @@ def upgrade() -> None:
             occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    )
+    conn.exec_driver_sql(_pg_compat_ddl(trip_lifecycle_sql) if is_postgres else trip_lifecycle_sql)
     conn.exec_driver_sql(
         "CREATE INDEX IF NOT EXISTS ix_trip_lifecycle_events_trip_id "
         "ON trip_lifecycle_events (trip_id, occurred_at)"
     )
 
-    conn.exec_driver_sql(
-        """
+    ledger_accounts_sql = """
         CREATE TABLE IF NOT EXISTS ledger_accounts (
             id TEXT PRIMARY KEY,
             user_id TEXT,
@@ -103,13 +113,12 @@ def upgrade() -> None:
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    )
+    conn.exec_driver_sql(_pg_compat_ddl(ledger_accounts_sql) if is_postgres else ledger_accounts_sql)
     conn.exec_driver_sql(
         "CREATE INDEX IF NOT EXISTS ix_ledger_accounts_user_id ON ledger_accounts (user_id)"
     )
 
-    conn.exec_driver_sql(
-        """
+    ledger_tx_sql = """
         CREATE TABLE IF NOT EXISTS ledger_transactions (
             id TEXT PRIMARY KEY,
             reference_key TEXT UNIQUE,
@@ -118,10 +127,9 @@ def upgrade() -> None:
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    )
+    conn.exec_driver_sql(_pg_compat_ddl(ledger_tx_sql) if is_postgres else ledger_tx_sql)
 
-    conn.exec_driver_sql(
-        """
+    ledger_entries_sql = """
         CREATE TABLE IF NOT EXISTS ledger_entries (
             id INTEGER PRIMARY KEY,
             transaction_id TEXT NOT NULL REFERENCES ledger_transactions(id),
@@ -131,40 +139,15 @@ def upgrade() -> None:
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    )
+    conn.exec_driver_sql(_pg_compat_ddl(ledger_entries_sql) if is_postgres else ledger_entries_sql)
     conn.exec_driver_sql(
         "CREATE INDEX IF NOT EXISTS ix_ledger_entries_transaction_id "
         "ON ledger_entries (transaction_id)"
     )
 
-    conn.exec_driver_sql(
-        """
-        CREATE TRIGGER IF NOT EXISTS trg_trip_lifecycle_events_no_update
-        BEFORE UPDATE ON trip_lifecycle_events
-        BEGIN SELECT RAISE(ABORT, 'trip_lifecycle_events is append-only'); END
-        """
-    )
-    conn.exec_driver_sql(
-        """
-        CREATE TRIGGER IF NOT EXISTS trg_trip_lifecycle_events_no_delete
-        BEFORE DELETE ON trip_lifecycle_events
-        BEGIN SELECT RAISE(ABORT, 'trip_lifecycle_events is append-only'); END
-        """
-    )
-    conn.exec_driver_sql(
-        """
-        CREATE TRIGGER IF NOT EXISTS trg_ledger_entries_no_update
-        BEFORE UPDATE ON ledger_entries
-        BEGIN SELECT RAISE(ABORT, 'ledger_entries is append-only'); END
-        """
-    )
-    conn.exec_driver_sql(
-        """
-        CREATE TRIGGER IF NOT EXISTS trg_ledger_entries_no_delete
-        BEFORE DELETE ON ledger_entries
-        BEGIN SELECT RAISE(ABORT, 'ledger_entries is append-only'); END
-        """
-    )
+    if not is_postgres:
+        create_sqlite_append_only_triggers(conn, "trip_lifecycle_events")
+        create_sqlite_append_only_triggers(conn, "ledger_entries")
 
     if is_postgres:
         conn.exec_driver_sql(
@@ -183,7 +166,7 @@ def upgrade() -> None:
                 WHERE transaction_id = NEW.transaction_id;
 
                 IF debit_total <> credit_total THEN
-                    RAISE EXCEPTION 'ledger transaction % is unbalanced (debits=%, credits=%)',
+                    RAISE EXCEPTION 'ledger transaction %% is unbalanced (debits=%%, credits=%%)',
                         NEW.transaction_id, debit_total, credit_total;
                 END IF;
                 RETURN NEW;
@@ -207,15 +190,25 @@ def upgrade() -> None:
         )
     # SQLite cannot defer constraint triggers; balance is enforced in application code.
 
-    conn.exec_driver_sql(
-        """
+    insert_seed_ignore(
+        conn,
+        sqlite_sql="""
         INSERT OR IGNORE INTO ledger_accounts (id, user_id, account_type, normality, label)
         VALUES
             ('acct_corporate_cash', NULL, 'asset', 'DEBIT', 'Corporate Cash / Bank'),
             ('acct_processing_expense', NULL, 'expense', 'DEBIT', 'Payment Processing Expense'),
             ('acct_processor_payable', NULL, 'liability', 'CREDIT', 'Payment Processor Payable'),
             ('acct_platform_revenue', NULL, 'revenue', 'CREDIT', 'Platform Revenue')
-        """
+        """,
+        postgresql_sql="""
+        INSERT INTO ledger_accounts (id, user_id, account_type, normality, label)
+        VALUES
+            ('acct_corporate_cash', NULL, 'asset', 'DEBIT', 'Corporate Cash / Bank'),
+            ('acct_processing_expense', NULL, 'expense', 'DEBIT', 'Payment Processing Expense'),
+            ('acct_processor_payable', NULL, 'liability', 'CREDIT', 'Payment Processor Payable'),
+            ('acct_platform_revenue', NULL, 'revenue', 'CREDIT', 'Platform Revenue')
+        ON CONFLICT (id) DO NOTHING
+        """,
     )
 
 
