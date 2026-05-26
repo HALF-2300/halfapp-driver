@@ -48,8 +48,21 @@ async function ensureOnlineIdle(page: import('@playwright/test').Page) {
   const idle = page.getByTestId('sheet-online-idle')
   if (await idle.isVisible().catch(() => false)) return
   const goOnline = page.getByTestId('go-online-btn')
-  if (await goOnline.isVisible().catch(() => false)) {
-    await goOnline.click({ force: true })
+  // The Go-online button may re-render once or twice while the cockpit settles
+  // after hydration (readiness check, marketplace refresh). Retry the click a
+  // few times to ride out DOM-detach races without losing test signal.
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (await idle.isVisible().catch(() => false)) break
+    if (!(await goOnline.isVisible().catch(() => false))) break
+    try {
+      await goOnline.click({ force: true, timeout: 4_000 })
+      break
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!/detached|timeout|not attached/i.test(msg)) throw err
+      // Re-locate next loop and retry.
+      await page.waitForTimeout(250)
+    }
   }
   await expect
     .poll(
