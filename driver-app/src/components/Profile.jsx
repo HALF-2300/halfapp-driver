@@ -13,11 +13,17 @@ const TABS = [
   { id: 'statistics', label: 'Stats' },
 ]
 
-function SettingsField({ label, value }) {
+function ProfileRow({ label, value, testId, valueColor }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-1 text-sm font-medium text-slate-900">{value || 'Not registered'}</div>
+    <div className="flex items-center justify-between gap-3 py-2 border-b last:border-b-0" style={{ borderColor: 'var(--ha-border)' }}>
+      <span className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ha-muted)' }}>{label}</span>
+      <span
+        className="text-sm font-medium text-right"
+        style={{ color: valueColor || 'var(--ha-text)', maxWidth: '65%' }}
+        data-testid={testId}
+      >
+        {value || 'Not registered'}
+      </span>
     </div>
   )
 }
@@ -30,7 +36,7 @@ function formatStatNumber(value, digits = 0) {
 
 export default function Profile() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { logout } = useAuth()
   const { units } = useDriverPreferences()
   const [profile, setProfile] = useState(null)
   const [stats, setStats] = useState(null)
@@ -39,6 +45,12 @@ export default function Profile() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('profile')
+
+  const [editingContact, setEditingContact] = useState(false)
+  const [phoneInput, setPhoneInput] = useState('')
+  const [emergencyInput, setEmergencyInput] = useState('')
+  const [savingContact, setSavingContact] = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
   const fetchProfileData = useCallback(async () => {
     try {
@@ -54,6 +66,9 @@ export default function Profile() {
         ])
 
       setProfile(profileData)
+      setPhoneInput(profileData?.phone || '')
+      setEmergencyInput(profileData?.emergency_contact || '')
+
       const rawList =
         notificationsData == null
           ? []
@@ -63,7 +78,7 @@ export default function Profile() {
       setNotifications(rawList)
       setInsights(Array.isArray(insightsData?.insights) ? insightsData.insights : [])
 
-      const ps = statsData.performance_stats || statsData || {}
+      const ps = statsData?.performance_stats || statsData || {}
       const es = earningsData?.earnings_summary
       setStats({
         total_rides: ps.total_rides_completed ?? null,
@@ -71,7 +86,6 @@ export default function Profile() {
         average_rating: ps.average_rating ?? null,
         total_distance: ps.total_distance_km ?? ps.total_distance ?? null,
       })
-
     } catch (err) {
       setError(err.message)
     } finally {
@@ -83,24 +97,49 @@ export default function Profile() {
     fetchProfileData()
   }, [fetchProfileData])
 
+  const saveContact = async () => {
+    setSavingContact(true)
+    setSaveError(null)
+    try {
+      await driverAPI.updateProfile({
+        phone: phoneInput.trim() || null,
+        emergency_contact: emergencyInput.trim() || null,
+      })
+      await fetchProfileData()
+      setEditingContact(false)
+    } catch (err) {
+      setSaveError(err?.message || 'Could not save contact info')
+    } finally {
+      setSavingContact(false)
+    }
+  }
+
+  const cancelContact = () => {
+    setEditingContact(false)
+    setSaveError(null)
+    setPhoneInput(profile?.phone || '')
+    setEmergencyInput(profile?.emergency_contact || '')
+  }
+
   const markNotificationRead = async (notificationId) => {
     try {
       await driverAPI.markNotificationRead(notificationId)
       await fetchProfileData()
-    } catch (err) {
-      console.error('Failed to mark notification as read:', err)
+    } catch {
+      /* best effort */
     }
   }
 
   const unreadCount = notifications.filter((n) => !isNotificationRead(n)).length
 
+  const approvalStatus = String(profile?.approval_status || '').toLowerCase()
+  const approvalApproved = approvalStatus === 'approved'
+  const vehicleReady = Boolean(profile?.vehicle_ready)
+
   const headerAction = (
-    <div className="flex flex-col gap-2 sm:flex-row">
+    <div className="flex gap-2">
       <button type="button" className="ha-btn ha-btn--ghost" onClick={() => navigate('/driver/settings')}>
         Settings
-      </button>
-      <button type="button" className="ha-btn ha-btn--ghost" onClick={() => navigate('/driver')}>
-        Cockpit
       </button>
       <button type="button" className="ha-btn ha-btn--ghost" onClick={logout}>
         Log out
@@ -112,10 +151,10 @@ export default function Profile() {
     <AppShellLayout
       testId="account-screen"
       title="Account"
-      subtitle="Read-only driver settings from the backend. Go online/offline from the map cockpit."
+      subtitle="Driver account, contact, and status."
       headerAction={headerAction}
     >
-      <section className="ha-section">
+      <section className="ha-section" style={{ paddingTop: '1rem' }}>
         <div className="ha-chip-row" role="tablist" aria-label="Account sections">
           {TABS.map((tab) => (
             <button
@@ -128,7 +167,7 @@ export default function Profile() {
               onClick={() => setActiveTab(tab.id)}
             >
               {tab.label}
-              {tab.id === 'notifications' && unreadCount > 0 ? ` (${unreadCount})` : ''}
+              {tab.id === 'notifications' && unreadCount > 0 ? ` · ${unreadCount}` : ''}
             </button>
           ))}
         </div>
@@ -146,43 +185,141 @@ export default function Profile() {
             <div className="ha-card ha-empty">Loading driver profile…</div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm" style={{ color: 'var(--ha-muted)' }}>
-                Read-only account and vehicle status for the current driver.
-              </p>
-              <SettingsField label="Email" value={profile?.email} />
-              <SettingsField label="Name" value={profile?.name} />
-              <SettingsField label="Role" value={profile?.role} />
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Approval status
-                </div>
-                <div
-                  data-testid="driver-profile-approval-status"
-                  className={
-                    String(profile?.approval_status || '').toLowerCase() === 'approved'
-                      ? 'mt-2 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800'
-                      : 'mt-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800'
-                  }
-                >
-                  {profile?.approval_status || 'pending'}
+
+              {/* Account identifiers */}
+              <div className="ha-card" style={{ padding: '0.75rem 1rem' }}>
+                <p className="ha-section-title" style={{ marginBottom: '0.5rem' }}>Account</p>
+                <ProfileRow label="Name" value={profile?.name} testId="profile-name" />
+                <ProfileRow label="Email" value={profile?.email} testId="profile-email" />
+                <ProfileRow label="Role" value={profile?.role} />
+              </div>
+
+              {/* Status */}
+              <div className="ha-card" style={{ padding: '0.75rem 1rem' }}>
+                <p className="ha-section-title" style={{ marginBottom: '0.5rem' }}>Status</p>
+                <div className="flex items-center justify-between gap-3 py-2">
+                  <span className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ha-muted)' }}>Approval</span>
+                  <span
+                    data-testid="driver-profile-approval-status"
+                    className="rounded-full px-3 py-0.5 text-xs font-semibold border"
+                    style={
+                      approvalApproved
+                        ? { background: 'rgba(52,211,153,0.12)', borderColor: 'rgba(52,211,153,0.35)', color: '#34d399' }
+                        : { background: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.35)', color: '#fcd34d' }
+                    }
+                  >
+                    {profile?.approval_status || 'pending'}
+                  </span>
                 </div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Vehicle
+
+              {/* Contact — editable */}
+              <div className="ha-card" style={{ padding: '0.75rem 1rem' }}>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <p className="ha-section-title" style={{ marginBottom: 0 }}>Contact</p>
+                  {!editingContact ? (
+                    <button
+                      type="button"
+                      className="ha-btn ha-btn--ghost"
+                      style={{ fontSize: '0.75rem', padding: '0.2rem 0.55rem' }}
+                      onClick={() => setEditingContact(true)}
+                    >
+                      Edit
+                    </button>
+                  ) : null}
                 </div>
-                <div className="mt-2 space-y-1 text-sm text-slate-800">
-                  <div>Make: {profile?.vehicle?.make || 'Not registered'}</div>
-                  <div>Model: {profile?.vehicle?.model || 'Not registered'}</div>
-                  <div>Plate: {profile?.vehicle?.plate || 'Not registered'}</div>
-                </div>
+                {!editingContact ? (
+                  <div>
+                    <ProfileRow label="Phone" value={profile?.phone || 'Not added'} />
+                    <ProfileRow label="Emergency contact" value={profile?.emergency_contact || 'Not added'} />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="ha-field-label" htmlFor="profile-phone">Phone number</label>
+                      <input
+                        id="profile-phone"
+                        type="tel"
+                        className="ha-input"
+                        value={phoneInput}
+                        onChange={(e) => setPhoneInput(e.target.value)}
+                        placeholder="+1 503 555 0100"
+                        autoComplete="tel"
+                      />
+                    </div>
+                    <div>
+                      <label className="ha-field-label" htmlFor="profile-emergency">Emergency contact</label>
+                      <input
+                        id="profile-emergency"
+                        type="text"
+                        className="ha-input"
+                        value={emergencyInput}
+                        onChange={(e) => setEmergencyInput(e.target.value)}
+                        placeholder="Name · phone number"
+                        autoComplete="off"
+                      />
+                    </div>
+                    {saveError ? (
+                      <p className="text-xs" style={{ color: 'var(--ha-danger)' }}>{saveError}</p>
+                    ) : null}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="ha-btn ha-btn--ghost flex-1"
+                        onClick={cancelContact}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="ha-btn ha-btn--primary flex-1"
+                        disabled={savingContact}
+                        onClick={saveContact}
+                        data-testid="profile-save-contact"
+                      >
+                        {savingContact ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Vehicle */}
+              <div className="ha-card" style={{ padding: '0.75rem 1rem' }}>
+                <p className="ha-section-title" style={{ marginBottom: '0.5rem' }}>Vehicle</p>
+                <ProfileRow
+                  label="Make"
+                  value={profile?.vehicle?.make || profile?.vehicle_make}
+                />
+                <ProfileRow
+                  label="Model"
+                  value={profile?.vehicle?.model || profile?.vehicle_model}
+                />
+                <ProfileRow
+                  label="Year"
+                  value={profile?.vehicle?.year || profile?.vehicle_year}
+                />
+                <ProfileRow
+                  label="Plate"
+                  value={profile?.vehicle?.plate || profile?.license_plate}
+                />
+                <ProfileRow
+                  label="Ready"
+                  value={vehicleReady ? 'Confirmed' : 'Needs ops review'}
+                  valueColor={vehicleReady ? 'var(--ha-green)' : 'var(--ha-warning)'}
+                />
+              </div>
+
               <div
                 data-testid="driver-profile-readonly-note"
-                className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"
+                className="rounded-xl border px-3 py-2.5 text-xs"
+                style={{
+                  borderColor: 'rgba(59,130,246,0.22)',
+                  background: 'rgba(59,130,246,0.05)',
+                  color: 'var(--ha-muted)',
+                }}
               >
-                Read-only mode: account, approval, and vehicle details are managed by the system.
-                No payment, bank, insurance, or dossier information is collected here.
+                Approval, vehicle compliance, and insurance are managed by operations. No payment or bank information is collected here.
               </div>
             </div>
           )}
@@ -192,7 +329,7 @@ export default function Profile() {
       {activeTab === 'notifications' && (
         <section className="ha-section" data-testid="account-notifications-panel">
           <h2 className="ha-section-title">
-            Backend notifications
+            Notifications
             {unreadCount > 0 ? ` · ${unreadCount} unread` : ''}
           </h2>
           {loading ? (
@@ -226,7 +363,8 @@ export default function Profile() {
                     {!isNotificationRead(notification) && (
                       <button
                         type="button"
-                        className="ha-btn ha-btn--ghost"
+                        className="ha-btn ha-btn--ghost shrink-0 self-start"
+                        style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem' }}
                         onClick={() => markNotificationRead(notification.id)}
                       >
                         Mark read
@@ -242,9 +380,9 @@ export default function Profile() {
 
       {activeTab === 'statistics' && (
         <section className="ha-section" data-testid="account-stats-panel">
-          <h2 className="ha-section-title">Measured stats (backend)</h2>
+          <h2 className="ha-section-title">Measured stats</h2>
           {loading ? (
-            <div className="ha-card ha-empty">Loading statistics…</div>
+            <div className="ha-card ha-empty">Loading…</div>
           ) : !stats ? (
             <div className="ha-card ha-empty">Statistics unavailable.</div>
           ) : (
@@ -263,13 +401,13 @@ export default function Profile() {
                   </div>
                 </div>
                 <div className="ha-stat">
-                  <div className="ha-stat-label">Average rating</div>
+                  <div className="ha-stat-label">Avg rating</div>
                   <div className="ha-stat-value">
                     {stats.average_rating != null && Number(stats.average_rating) > 0
                       ? formatStatNumber(stats.average_rating, 1)
                       : '—'}
                   </div>
-                  <div className="ha-stat-meta">Shown only when backend provides a value</div>
+                  <div className="ha-stat-meta">Backend only</div>
                 </div>
                 <div className="ha-stat">
                   <div className="ha-stat-label">Distance</div>
@@ -281,15 +419,10 @@ export default function Profile() {
                 </div>
               </div>
 
-              <div className="ha-card mt-3">
-                <h3 className="ha-section-title">Dispatch insights</h3>
-                {insights.length === 0 ? (
-                  <p className="text-sm" style={{ color: 'var(--ha-muted)' }}>
-                    No measured dispatch insights yet. The backend returns empty states until
-                    rides are seen and claimed.
-                  </p>
-                ) : (
-                  <ul className="space-y-3 mt-2">
+              {insights.length > 0 ? (
+                <div className="ha-card mt-3">
+                  <h3 className="ha-section-title">Dispatch insights</h3>
+                  <ul className="space-y-3">
                     {insights.map((insight, index) => (
                       <li
                         key={`${insight.type || 'insight'}-${index}`}
@@ -306,8 +439,8 @@ export default function Profile() {
                       </li>
                     ))}
                   </ul>
-                )}
-              </div>
+                </div>
+              ) : null}
             </>
           )}
         </section>

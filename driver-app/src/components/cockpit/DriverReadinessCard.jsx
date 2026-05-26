@@ -34,6 +34,7 @@ export default function DriverReadinessCard({
       ) : (
         <p className="mt-1 text-[13px] text-emerald-100" data-testid="driver-readiness-ready">
           Profile, vehicle, documents, insurance, and beta approval are clear.
+          Manual operations readiness is recorded.
         </p>
       )}
       {!ready && blockers.length > 1 && !compact ? (

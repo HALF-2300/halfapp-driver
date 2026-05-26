@@ -31,11 +31,18 @@ function formatCompletedAt(value) {
   })
 }
 
+const PERIODS = [
+  { id: 'today', label: 'Today' },
+  { id: 'week', label: '7 days' },
+  { id: 'all', label: 'All time' },
+]
+
 export default function Earnings() {
   const [earnings, setEarnings] = useState(null)
   const [ridePayments, setRidePayments] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [activePeriod, setActivePeriod] = useState('today')
 
   const fetchEarnings = useCallback(() => {
     setLoading(true)
@@ -77,6 +84,13 @@ export default function Earnings() {
   const todayStr = formatMoney(summary.today_earnings) ?? '0.00'
   const weeklyStr = formatMoney(summary.weekly_earnings) ?? '0.00'
 
+  const activeSummary =
+    activePeriod === 'today'
+      ? { amount: todayStr, jobs: summary.today_rides || 0, label: 'Today' }
+      : activePeriod === 'week'
+        ? { amount: weeklyStr, jobs: summary.weekly_rides || 0, label: 'Last 7 days' }
+        : { amount: totalStr, jobs: summary.total_rides_completed || 0, label: 'All time' }
+
   return (
     <AppShellLayout
       testId="earnings-screen"
@@ -84,39 +98,56 @@ export default function Earnings() {
       subtitle={BETA_EARNINGS_SUBTITLE}
     >
       <BetaTruthNotice variant="full" />
-      <section className="ha-section">
+      <section className="ha-section" style={{ paddingTop: '1rem' }}>
+        {/* Period selector */}
+        <div className="ha-chip-row mb-3">
+          {PERIODS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`ha-chip ${activePeriod === p.id ? 'ha-chip--active' : ''}`}
+              onClick={() => setActivePeriod(p.id)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Hero card for selected period */}
         <div className="ha-card ha-card--accent" data-testid="earnings-hero-card">
           <div className="ha-stat-label" style={{ color: 'rgba(191, 219, 254, 0.9)' }}>
-            Lifetime (backend)
+            {activeSummary.label}
           </div>
-          <div className="text-4xl font-bold mt-1" data-testid="earnings-total-display">
-            ${totalStr}
+          <div className="text-4xl font-bold mt-1 tabular-nums" data-testid="earnings-total-display">
+            ${activeSummary.amount}
           </div>
           {BETA_NO_MONEY_TRUTH_ENABLED ? (
-          <p className="text-[11px] mt-2 ha-truth-note" data-testid="earnings-calculated-test-label">
-            {BETA_CALCULATED_VALUE_LABEL} · {BETA_OBLIGATION_DETAIL}
-          </p>
+            <p className="text-[11px] mt-2 ha-truth-note" data-testid="earnings-calculated-test-label">
+              {BETA_CALCULATED_VALUE_LABEL} · {BETA_OBLIGATION_DETAIL}
+            </p>
           ) : null}
           <p className="text-xs mt-2" style={{ color: 'rgba(191, 219, 254, 0.85)' }}>
-            Across {summary.total_rides_completed || 0} completed{' '}
-            {(summary.total_rides_completed || 0) === 1 ? 'job' : 'jobs'}
+            {activeSummary.jobs} completed {activeSummary.jobs === 1 ? 'job' : 'jobs'}
           </p>
         </div>
 
-        <div className="ha-stat-grid mt-3">
-          <div className="ha-stat">
-            <div className="ha-stat-label">Today</div>
-            <div className="ha-stat-value">${todayStr}</div>
-            <div className="ha-stat-meta">
-              {summary.today_rides || 0} {(summary.today_rides || 0) === 1 ? 'job' : 'jobs'}
+        {/* All-period breakdown (visible when not "All time" already) */}
+        {activePeriod !== 'all' && (
+          <div className="ha-stat-grid mt-3">
+            <div className="ha-stat">
+              <div className="ha-stat-label">Today</div>
+              <div className="ha-stat-value tabular-nums">${todayStr}</div>
+              <div className="ha-stat-meta">
+                {summary.today_rides || 0} {(summary.today_rides || 0) === 1 ? 'job' : 'jobs'}
+              </div>
+            </div>
+            <div className="ha-stat">
+              <div className="ha-stat-label">Last 7 days</div>
+              <div className="ha-stat-value tabular-nums">${weeklyStr}</div>
+              <div className="ha-stat-meta">{summary.weekly_rides || 0} jobs</div>
             </div>
           </div>
-          <div className="ha-stat">
-            <div className="ha-stat-label">Last 7 days</div>
-            <div className="ha-stat-value">${weeklyStr}</div>
-            <div className="ha-stat-meta">{summary.weekly_rides || 0} jobs</div>
-          </div>
-        </div>
+        )}
       </section>
 
       <section className="ha-section">

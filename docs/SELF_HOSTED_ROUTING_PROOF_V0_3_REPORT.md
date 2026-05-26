@@ -2,51 +2,78 @@
 
 **Task:** P0-G2  
 **Date:** 2026-05-25  
-**STATUS:** **NO_GO** (runtime) · **GO** (code path + proof script)
+**STATUS:** **GO** (runtime + code path)
 
-## COMMAND RUN
+This report is aligned with `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md`.
+
+## Command Run
 
 ```powershell
-py -3.11 scripts/prove_osrm_runtime.py
-# Exit 2 — OSRM not listening (expected on host without Docker/data)
-
-cd backend
-py -3.11 -m pytest tests/test_osrm_self_hosted_routing.py tests/test_ride_route_grounding.py -q
-# passed (mocked)
-
-OSRM_BASE_URL=http://127.0.0.1:5000 py -3.11 -m pytest tests/test_routing_service_real_osrm.py -q
-# skipped without reachable OSRM
+cd C:\Users\him\Desktop\halfapp-driver
+py -3.11 scripts\prove_osrm_runtime.py
 ```
 
-## PROOF
+Result:
+
+```text
+GO: used_fallback=false provider=osrm_self_hosted (3 PDX routes)
+```
+
+Detailed route evidence:
+
+```text
+[OK] Downtown -> PDX: provider=osrm_self_hosted used_fallback=False distance_km=20.189 duration_min=22
+[OK] Pearl -> Hawthorne: provider=osrm_self_hosted used_fallback=False distance_km=4.817 duration_min=10
+[OK] OHSU -> Downtown: provider=osrm_self_hosted used_fallback=False distance_km=3.695 duration_min=9
+```
+
+```powershell
+cd C:\Users\him\Desktop\halfapp-driver\backend
+$env:OSRM_BASE_URL='http://127.0.0.1:5000'
+$env:ROUTING_PROVIDER='osrm_self_hosted'
+$env:ROUTING_FALLBACK_ENABLED='true'
+py -3.11 -m pytest -q tests/test_osrm_self_hosted_routing.py tests/test_routing_service_real_osrm.py
+```
+
+Result:
+
+```text
+7 passed, 4 warnings in 9.42s
+```
+
+## Proof
 
 | Check | Result |
 |-------|--------|
-| `scripts/prove_osrm_runtime.py` | Added — 3 PDX pairs; prints `GO: used_fallback=false provider=osrm_self_hosted` on success |
-| `docker-compose.yml` osrm service | Added (port 5000, `docker/osrm-portland/data`) |
-| `tests/test_routing_service_real_osrm.py` | Added — skips unless OSRM reachable |
+| `scripts/prove_osrm_runtime.py` | **GO** — 3 PDX pairs returned `provider=osrm_self_hosted`, `used_fallback=False` |
+| `docker/osrm-portland/data` | **Prepared** — Oregon `.osrm` extract files present |
+| `tests/test_routing_service_real_osrm.py` | **GO** — ran against reachable `OSRM_BASE_URL`, did not skip |
 | Haversine fallback preserved | `ROUTING_FALLBACK_ENABLED` unchanged |
-| Runtime on proof host | **BLOCKED** — connection refused `:5000` |
+| Runtime on proof host | **GO** — `http://127.0.0.1:5000` reachable |
 
-## Operator close to GO
+## Reproduce
 
 ```powershell
-cd docker/osrm-portland
-# prepare-data once — see README
-docker compose up -d
-cd ../..
-py -3.11 scripts/prove_osrm_runtime.py
+$env:OSRM_BASE_URL = "http://127.0.0.1:5000"
+cd C:\Users\him\Desktop\halfapp-driver
+py -3.11 scripts\prove_osrm_runtime.py
 ```
 
-Expected: exit **0**, three lines `[OK]` with `used_fallback=False`.
+Expected: exit **0**, three lines `[OK]` with `used_fallback=False`, and final line:
 
-## DOCS UPDATED
+```text
+GO: used_fallback=false provider=osrm_self_hosted (3 PDX routes)
+```
+
+## Docs Updated
 
 - `scripts/prove_osrm_runtime.py`
 - `docker-compose.yml`
 - `backend/tests/test_routing_service_real_osrm.py`
+- `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md`
 - `docs/SELF_HOSTED_ROUTING_PROOF_V0_3_REPORT.md`
+- `docs/CURRENT_TRUTH.md`
 
-## NEXT TASK
+## Next Task
 
-**BLOCKED:** Start OSRM container with prepared extract, then re-run proof script.
+G3 owner courier day remains human-only. Agents must not mark G3 GO.

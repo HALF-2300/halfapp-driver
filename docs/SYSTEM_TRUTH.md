@@ -3,7 +3,7 @@
 Date: 2026-05-25  
 Status: **Non-negotiable ground truth** for engineers, agents, reviewers, and investors.
 
-**Updated 2026-05-25** to match `HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md` Phase 1–4 **SHIPPED** (code). Staging proofs (PostgreSQL claim-race on dev machine, OSRM runtime, owner courier day) may still be **PARTIAL** — see `docs/HALFAPP_AI_AGENT_COMPLETION_DIRECTIVES_01.md`.
+**Updated 2026-05-25** to match `HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md` Phase 1–4 **SHIPPED** (code). P0 technical runtime proofs G1/G2/G7 are **GO**; owner courier day G3 remains **PENDING_OWNER** — see `docs/HALFAPP_AI_AGENT_COMPLETION_DIRECTIVES_01.md`.
 
 This document supersedes stale assumptions that HalfApp has **no** rider or ops product. It does **not** claim a complete DoorDash/Lyft-class marketplace.
 
@@ -70,8 +70,8 @@ Legacy code and docs say **ride** / **rider**; product meaning is **delivery job
 
 | Area | Status |
 |------|--------|
-| PostgreSQL default dev + claim-race on **your** machine | **PARTIAL** — CI job exists; run `test_postgres_claim_race_proof_01.py` locally |
-| OSRM runtime | **NO_GO** until `scripts/prove_osrm_runtime.py` exit 0 |
+| PostgreSQL default dev + claim-race | **GO** — fresh PostgreSQL 16 Alembic + claim-race proof passed |
+| OSRM runtime | **GO** — `scripts/prove_osrm_runtime.py` exit 0 on this host |
 | Real Stripe / bank payout UX | **NOT** product — flags + schema only |
 | Push notifications | **NOT** shipped |
 | Proof of delivery | **NOT** shipped |
@@ -109,6 +109,6 @@ Legacy code and docs say **ride** / **rider**; product meaning is **delivery job
 | Requester side | **Shipped** (minimal app) |
 | Simulated payments + ledger | **Shipped** (not PSP product) |
 | Ops console | **Shipped** (minimal) |
-| Staging hardening (PG + OSRM + owner day) | **In progress** |
+| Staging hardening (PG + OSRM + owner day) | **In progress** — PG + OSRM GO; owner day pending |
 
 **A full production marketplace loop is demonstrable in dev; production GO requires closed P0 gates in `HALFAPP_AI_AGENT_COMPLETION_DIRECTIVES_01.md`.**

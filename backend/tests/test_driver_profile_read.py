@@ -51,6 +51,8 @@ def test_driver_profile_read_success():
     assert data["read_only"] is True
     assert "vehicle" in data
     assert data["vehicle"]["make"] == "Not registered"
+    assert data["vehicle_ready"] is False
+    assert data["insurance_expires_at"] is None
 
 
 def test_driver_profile_requires_driver():

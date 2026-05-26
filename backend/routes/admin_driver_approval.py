@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from database import get_db
 from models.driver_approval import DriverApproval, DriverApprovalStatus
@@ -20,7 +21,7 @@ from services.lifecycle import (
     to_storage_ride_status,
 )
 from services.transition_errors import invalid_state_transition_detail, target_status_for_action
-from services.ledger import record_ledger_entry
+from services.ledger import append_marketplace_event, record_ledger_entry
 from services.presence import derive_effective_presence, get_or_create_presence, presence_to_dict
 from services.ride_audit import _lifecycle_events_block
 from services.ride_payment import fail_payment_for_ride, get_ride_payment, payment_to_dict, authorize_payment_for_ride
@@ -40,19 +41,50 @@ class DriverApprovalPatchBody(BaseModel):
     reason: str | None = None
 
 
+class DriverReadinessPatchBody(BaseModel):
+    vehicle_make: str | None = None
+    vehicle_model: str | None = None
+    vehicle_year: int | None = Field(default=None, ge=1900, le=2100)
+    license_plate: str | None = None
+    insurance_policy: str | None = None
+    insurance_expires_at: datetime | None = None
+    vehicle_ready: bool | None = None
+    reason: str | None = Field(default=None, max_length=500)
+
+
 def _driver_admin_row(db: Session, driver: User) -> dict:
     approval = db.query(DriverApproval).filter(DriverApproval.driver_id == driver.id).first()
     presence = derive_effective_presence(get_or_create_presence(db, driver))
     active_ride_id = driver_active_ride_id(db, driver.id)
     presence_dict = presence_to_dict(presence)
+    approval_dict = approval_public_dict(approval)
     return {
         "id": driver.id,
         "email": driver.email,
         "name": driver.name,
         "license_no": driver.license_no,
+        "vehicle": {
+            "make": driver.vehicle_make,
+            "model": driver.vehicle_model,
+            "year": driver.vehicle_year,
+            "plate": driver.license_plate,
+            "ready": bool(driver.vehicle_ready),
+        },
+        "insurance": {
+            "policy": driver.insurance_policy,
+            "expires_at": driver.insurance_expires_at.isoformat() if driver.insurance_expires_at else None,
+        },
+        "readiness": {
+            "license_present": bool(driver.license_no),
+            "vehicle_info_present": bool(driver.vehicle_make and driver.vehicle_model and driver.license_plate),
+            "vehicle_ready": bool(driver.vehicle_ready),
+            "insurance_policy_present": bool(driver.insurance_policy),
+            "insurance_expires_at": driver.insurance_expires_at.isoformat() if driver.insurance_expires_at else None,
+            "approval_status": approval_dict["status"],
+        },
         "is_active": driver.is_active,
         "created_at": driver.created_at,
-        "approval": approval_public_dict(approval),
+        "approval": approval_dict,
         "presence": presence_dict,
         "online": presence_dict["effective_state"] == "available",
         "active_ride_id": active_ride_id,
@@ -84,6 +116,63 @@ def list_drivers(
         )
     drivers = query.order_by(User.id.desc()).all()
     return [_driver_admin_row(db, driver) for driver in drivers]
+
+
+@router.patch("/drivers/{driver_id}/readiness")
+def patch_driver_readiness(
+    driver_id: int,
+    body: DriverReadinessPatchBody,
+    admin_user: AuthPrincipal = Depends(ADMIN_ACCESS),
+    db: Session = Depends(get_db),
+):
+    admin = load_principal_user(db, admin_user)
+    driver = db.query(User).filter(User.id == driver_id, User.role == UserRole.DRIVER).first()
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+
+    def _clean(value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        return text or None
+
+    if body.vehicle_make is not None:
+        driver.vehicle_make = _clean(body.vehicle_make)
+    if body.vehicle_model is not None:
+        driver.vehicle_model = _clean(body.vehicle_model)
+    if body.vehicle_year is not None:
+        driver.vehicle_year = body.vehicle_year
+    if body.license_plate is not None:
+        driver.license_plate = _clean(body.license_plate)
+    if body.insurance_policy is not None:
+        driver.insurance_policy = _clean(body.insurance_policy)
+    if body.insurance_expires_at is not None:
+        expires = body.insurance_expires_at
+        driver.insurance_expires_at = expires.replace(tzinfo=None) if expires.tzinfo else expires
+    if body.vehicle_ready is not None:
+        driver.vehicle_ready = bool(body.vehicle_ready)
+
+    if body.reason:
+        append_marketplace_event(
+            db,
+            event_type="driver_readiness_reviewed",
+            entity_type="driver",
+            entity_id=driver.id,
+            actor_id=admin.id,
+            driver_id=driver.id,
+            payload={
+                "insurance_expires_at": driver.insurance_expires_at.isoformat()
+                if driver.insurance_expires_at
+                else None,
+                "outcome": "vehicle_ready" if driver.vehicle_ready else "vehicle_not_ready",
+                "reason": body.reason.strip(),
+                "vehicle_ready": bool(driver.vehicle_ready),
+            },
+        )
+
+    db.commit()
+    db.refresh(driver)
+    return {"message": "Driver readiness updated", "driver": _driver_admin_row(db, driver)}
 
 
 @router.patch("/drivers/{driver_id}/approval")

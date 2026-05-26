@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatCents, formatDate, listRides, statusBadgeClass } from '../utils/api.js'
 
@@ -6,6 +6,7 @@ const POLL_MS = 5000
 
 export default function RideListPage() {
   const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
   const [rides, setRides] = useState([])
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -36,17 +37,30 @@ export default function RideListPage() {
     ['accepted', 'driver_arrived', 'in_progress', 'requested'].includes(r.status),
   ).length
 
+  const displayRides = useMemo(() => {
+    if (!search.trim()) return rides
+    const q = search.trim().toLowerCase()
+    return rides.filter((r) => {
+      if (String(r.id).includes(q)) return true
+      if (r.driver_id && String(r.driver_id).toLowerCase().includes(q)) return true
+      if (r.rider_id && String(r.rider_id).toLowerCase().includes(q)) return true
+      if (r.status && r.status.toLowerCase().includes(q)) return true
+      return false
+    })
+  }, [rides, search])
+
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Rides</h1>
           <p className="text-sm text-[var(--ops-muted)]">
-            {filter === 'active' ? `${rides.length} active` : `${rides.length} shown`}
+            {filter === 'active' ? `${rides.length} active` : `${rides.length} loaded`}
+            {search.trim() ? ` · ${displayRides.length} matching` : ''}
             {lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ''}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'active', 'completed'].map((value) => (
             <button
               key={value}
@@ -65,9 +79,21 @@ export default function RideListPage() {
 
       {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}
 
-      <div className="mb-4 rounded-xl border border-white/10 bg-[var(--ops-surface)] p-4 text-sm">
-        <span className="text-[var(--ops-muted)]">Quick answers: </span>
-        <strong>{activeCount}</strong> rides in active-ish states on this page · filter “active” for in-flight only
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-[200px]">
+          <input
+            type="search"
+            className="w-full rounded-xl border border-white/10 bg-[var(--ops-surface)] px-3 py-2 text-sm text-white placeholder-[var(--ops-muted)] focus:border-orange-400/60 focus:outline-none"
+            placeholder="Search by ride ID, driver ID, status…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            data-testid="rides-search"
+          />
+        </div>
+        <div className="rounded-xl border border-white/10 bg-[var(--ops-surface)] px-3 py-2 text-sm">
+          <span className="text-[var(--ops-muted)]">Active: </span>
+          <strong>{activeCount}</strong>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-white/10 bg-[var(--ops-surface)]">
@@ -87,7 +113,7 @@ export default function RideListPage() {
               </tr>
             </thead>
             <tbody>
-              {rides.map((ride) => (
+              {displayRides.map((ride) => (
                 <tr key={ride.id}>
                   <td>
                     <Link to={`/rides/${ride.id}`} className="text-orange-300 hover:underline">
@@ -112,10 +138,10 @@ export default function RideListPage() {
                   <td>{formatDate(ride.created_at)}</td>
                 </tr>
               ))}
-              {!rides.length ? (
+              {!displayRides.length ? (
                 <tr>
                   <td colSpan={7} className="text-center text-[var(--ops-muted)]">
-                    No rides found
+                    {search.trim() ? `No rides matching "${search}"` : 'No rides found'}
                   </td>
                 </tr>
               ) : null}

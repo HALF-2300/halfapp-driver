@@ -27,7 +27,7 @@
 **Verify:**
 - ☐ All four ports free
 - ☐ Toolchain present
-- ☐ Backend migrates clean (output ends `Running upgrade ... -> 0035_telemetry_retention_index`)
+- ☐ Backend migrates clean (output ends at `0036_driver_readiness_fields`)
 
 ---
 

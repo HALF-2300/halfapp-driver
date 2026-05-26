@@ -153,3 +153,41 @@ def test_admin_drivers_include_presence_fields():
     assert "online" in row
     assert "active_ride_id" in row
     assert "availability_label" in row
+    assert "readiness" in row
+    assert "vehicle" in row
+    assert "insurance" in row
+
+
+def test_admin_updates_driver_readiness_fields():
+    db = SessionLocal()
+    try:
+        admin_token = _admin_token(db)
+        driver_token, driver_id = _driver_token(db)
+    finally:
+        db.close()
+
+    with TestClient(app) as client:
+        resp = client.patch(
+            f"/admin/drivers/{driver_id}/readiness",
+            headers=_headers(admin_token),
+            json={
+                "vehicle_make": "Toyota",
+                "vehicle_model": "Prius",
+                "vehicle_year": 2021,
+                "license_plate": "OPS-123",
+                "insurance_policy": "POL-OPS-1",
+                "insurance_expires_at": "2027-05-25T00:00:00Z",
+                "vehicle_ready": True,
+                "reason": "ops readiness review",
+            },
+        )
+        profile = client.get("/drivers/profile", headers=_headers(driver_token))
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()["driver"]
+    assert body["readiness"]["vehicle_ready"] is True
+    assert body["insurance"]["expires_at"].startswith("2027-05-25")
+    assert profile.status_code == 200, profile.text
+    profile_body = profile.json()
+    assert profile_body["vehicle_ready"] is True
+    assert profile_body["insurance_expires_at"].startswith("2027-05-25")

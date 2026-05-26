@@ -1,9 +1,9 @@
 # HalfApp Driver — Program, System, and Brain: Comprehensive Expert Report (Report 06)
 
-**Document ID:** `HALFAPP_PROGRAM_BRAIN_COMPREHENSIVE_REPORT_06`  
-**Date:** 2026-05-25 (**NEW UPDATE — supersedes Report 05 for big-picture and next-phase decisions**)  
-**Audience:** Program owner, senior engineers, external experts, investors with technical depth  
-**Repository:** `halfapp-driver` (private)  
+**Document ID:** `HALFAPP_PROGRAM_BRAIN_COMPREHENSIVE_REPORT_06`
+**Date:** 2026-05-25 (**NEW UPDATE — supersedes Report 05 for big-picture and next-phase decisions**)
+**Audience:** Program owner, senior engineers, external experts, investors with technical depth
+**Repository:** `halfapp-driver` (private)
 **Supersedes for big-picture:** `HALFAPP_PROGRAM_BRAIN_COMPREHENSIVE_REPORT_05.md` (2026-05-25) — use **this file** first.
 
 **Live verification on this pass (run before you cite numbers in decks):**
@@ -54,18 +54,19 @@ Report 05 was written the same day as this report; the **working tree** and **go
 
 | Area | Report 05 state | Report 06 / workspace state |
 |------|-----------------|------------------------------|
-| Alembic head | Cited `0032_ride_payments` | **Head `0035_telemetry_retention_index`** — chain `0032` → `0034_sil_crl_snapshots` → `0035` |
+| Alembic head | Cited `0032_ride_payments` | **Head `0036_driver_readiness_fields`** — chain `0032` → `0034_sil_crl_snapshots` → `0035` → `0036` |
 | Area intelligence ops | “SIL/CRL on-read compute” risk | **Background worker** optional: `HALFAPP_SIL_CRL_WORKER_ENABLED` → `jobs/sil_crl_worker.py` (60s SIL / 5m CRL) |
 | Telemetry | “Unbounded growth” risk | **Retention index** migration `0035` + `jobs/telemetry_retention.py` + tests |
+| Driver readiness | Frontend-only expiry blocker | **Operator-owned readiness fields** migration `0036` + admin PATCH endpoint + driver online gate |
 | P0 infrastructure | Described | **`docker-compose.yml`** ships Postgres 16 + OSRM container definitions for local G1/G2 |
-| Postgres / Alembic proof | PARTIAL | CI-oriented tests: `test_postgres_claim_race_proof_01.py`, `test_alembic_postgres_upgrade_head.py` |
+| Postgres / Alembic proof | **GO** | Fresh PostgreSQL 16 `alembic upgrade head` + `test_postgres_claim_race_proof_01.py`, `test_alembic_postgres_upgrade_head.py` passed |
 | Ride AI | Advisory, demo tier | **Route grounding** (`ride_route_grounding.py`, `ride_ai_dispatch_route_context.py`), payment gate tests, Playwright proof config |
 | Stable car / owner verify | Mentioned | **`scripts/owner_runbook_verify.py`**, `test_stable_car_p0_01.py` |
 | Backend pytest | “350+” from prior gate doc | **Live run after drift closure: 383 passed, 9 skipped** — see `BACKEND_PYTEST_DRIFT_CLOSURE_01.md` |
 | SYSTEM_TRUTH | Noted lag vs checklist | **Reconciled 2026-05-25** — rider-app + ops-app now **SHIPPED** in authoritative doc |
-| P0 gates G1–G7 | Listed | **Overall PARTIAL_GO** per `CURRENT_TRUTH.md` — owner runtime still pending |
+| P0 gates G1–G7 | Listed | **Overall PARTIAL_GO** per `CURRENT_TRUTH.md` — **G1/G2/G7 now GO**; G3 owner day still pending |
 
-**Strategic implication for “next step”:** You are past **“build the two-sided demo.”** You are at **“prove staging + close honesty gaps + pick one delivery fork.”** Do not add surface area until G1–G3 are closed or explicitly waived with written risk acceptance.
+**Strategic implication for “next step”:** You are past **“build the two-sided demo.”** You are at **“prove staging + close honesty gaps + pick one delivery fork.”** Do not add surface area until remaining G3 owner-day gate is closed or explicitly waived with written risk acceptance.
 
 ## 0.3 Terminology map (code ↔ delivery language)
 
@@ -104,7 +105,7 @@ Report 05 was written the same day as this report; the **working tree** and **go
 | Dispatch | Auto, batching, zones | Nearest driver ETA product | **Open board** or **optional auto-assign** |
 | Proof of delivery | Photo, PIN, signature | N/A | **Not implemented** |
 | Payments | Capture, tips, payouts | Same | **Simulated + schema for Stripe** |
-| Routing | Road network + traffic products | Same | OSRM **code GO**, runtime **NO_GO** default |
+| Routing | Road network + traffic products | Same | OSRM runtime **GO on this host**; no public routing SLA |
 | Ops | Refunds, merchants, SLAs | Fleet ops | **Minimal ops-app** |
 | Intelligence | ML demand, ETAs | Surge, matching ML | **Rule-based SIL/CRL** + optional **advisory LLM** |
 
@@ -118,7 +119,7 @@ HalfApp has crossed a meaningful threshold: it is no longer only a driver-only M
 
 **Strengths:** backend authority, atomic claim lock, structured 409 transparency, integer-cent pricing honesty, two-sided loop shipped in code, growing proof culture (Playwright, acceptance reports, owner runbook).
 
-**Weaknesses:** staging proofs incomplete (PostgreSQL claim-race on your machine, OSRM runtime, owner courier day), no push notifications, no proof-of-delivery, ride vocabulary confusion, advisory AI not production-tier.
+**Weaknesses:** staging proofs incomplete (owner courier day), no push notifications, no proof-of-delivery, ride vocabulary confusion, advisory AI not production-tier. PostgreSQL Alembic + claim-race proof is GO on a fresh local PostgreSQL 16 cluster; OSRM runtime proof is GO on this host.
 
 ## 1.2 What “the brain” means in this program (full taxonomy)
 
@@ -162,36 +163,34 @@ The word **brain** is overloaded. In HalfApp it means **seven distinct layers** 
 |------|---------------------|-------|
 | Backend pytest (full) | **383 passed, 9 skipped** | SQLite dev gate green after drift closure; see `BACKEND_PYTEST_DRIFT_CLOSURE_01.md` |
 | Prior gate doc | 345 passed (2026-05-24) | `BACKEND_TEST_GATE_PROOF_V0_1.md` — superseded by live run |
-| Alembic head | **`0035_telemetry_retention_index`** | 35 revisions `0001`–`0035` |
+| Alembic head | **`0036_driver_readiness_fields`** | 36 revisions `0001`–`0036` |
 | Driver ride-flow E2E | **GO** | `RIDE_FLOW_UI_PROOF_V0_2_STATUS.md` |
 | Rider ride-flow E2E | **GO** | `rider-app` Playwright |
 | Ride AI dispatch UI | **GO_DEMO_SAFE** | Not production GO — see production proof gates report |
-| OSRM runtime | **NO_GO** | Until `scripts/prove_osrm_runtime.py` exit 0 on prepared extract |
-| P0 overall | **PARTIAL_GO** | G1 PG local, G2 OSRM, G3 owner day, G7 PG proof pending |
+| OSRM runtime | **GO** | `scripts/prove_osrm_runtime.py` exit 0; backend real OSRM tests passed |
+| P0 overall | **PARTIAL_GO** | G1/G2/G7 proofs GO; G3 owner day pending |
 | Two-sided Phases 1–4 | **SHIPPED (code)** | Owner sign-off via runbook recommended |
 
 ## 1.5 Recommended next phase (90-day delivery focus)
 
 **Phase A — Proof (non-negotiable before feature forks)**
 
-1. Keep backend pytest green (`383 passed, 9 skipped` on the 2026-05-25 SQLite dev run).  
-2. G1: `docker compose up -d postgres` + claim-race green on PostgreSQL.  
-3. G2: OSRM runtime proof on Portland extract.  
-4. G3: Owner completes `OWNER_INTERNAL_TEST_RUNBOOK_01.md` once — fill `OWNER_COURIER_DAY_REPORT_01.md`.  
-5. G5/G6: Keep surface-freeze + SYSTEM_TRUTH aligned when routes change.
+1. Keep backend pytest green (`383 passed, 9 skipped` on the 2026-05-25 SQLite dev run).
+2. G3: Owner completes `OWNER_INTERNAL_TEST_RUNBOOK_01.md` once — fill `OWNER_COURIER_DAY_REPORT_01.md`.
+3. G5/G6: Keep surface-freeze + SYSTEM_TRUTH aligned when routes change.
 
 **Phase B — Courier-complete (after P0 GO)**
 
-1. Push notification design + assign alerts (P1.1).  
-2. Session recovery hardening mid-job (P1.2).  
-3. Delivery vocabulary UI pass (reduce “ride-hailing” copy).  
+1. Push notification design + assign alerts (P1.1).
+2. Session recovery hardening mid-job (P1.2).
+3. Delivery vocabulary UI pass (reduce “ride-hailing” copy).
 4. Enable `HALFAPP_SIL_CRL_WORKER_ENABLED` in staging; verify `SIL_CRL_WORKER_PROOF_01.md`.
 
 **Phase C — One fork only (pick one)**
 
-- Proof-of-delivery (photo/PIN) **OR**  
-- Merchant/order payload on job **OR**  
-- Real Stripe pilot with unchanged UI guards **OR**  
+- Proof-of-delivery (photo/PIN) **OR**
+- Merchant/order payload on job **OR**
+- Real Stripe pilot with unchanged UI guards **OR**
 - External trusted-courier beta (explicitly deferred in roadmap)
 
 ---
@@ -228,7 +227,7 @@ sequenceDiagram
 ```
 halfapp-driver/
 ├── backend/                 # FastAPI — authority for all four apps
-│   ├── alembic/versions/    # 0001–0035 schema evolution
+│   ├── alembic/versions/    # 0001–0036 schema evolution
 │   ├── routes/              # auth, drivers, rider_rides, admin, sil, crl, payments*
 │   ├── services/            # 78 service modules (dispatch, lifecycle, pricing, routing, SIL, CRL, …)
 │   ├── jobs/                # sil_crl_worker, telemetry_retention (background)
@@ -294,49 +293,49 @@ HalfApp’s most unusual asset for an MVP-stage repo is **truth discipline as co
 
 ### Strengths
 
-- Prevents demo deck language from outrunning courier-facing truth.  
-- Makes “closed lane” explicit — reduces accidental rewrite of claim lock every sprint.  
+- Prevents demo deck language from outrunning courier-facing truth.
+- Makes “closed lane” explicit — reduces accidental rewrite of claim lock every sprint.
 - Gives external experts a **reading order** instead of raw repo spelunking.
 
 ### Weaknesses
 
-- **~100+ markdown files** — high navigation cost; contradictions require reconciliation passes (`HALFAPP_TRUTH_SYNC_*`, P0 G6).  
-- Some older docs still say “no rider product” — **trust SYSTEM_TRUTH + this report + checklist** for 2026-05-25.  
+- **~100+ markdown files** — high navigation cost; contradictions require reconciliation passes (`HALFAPP_TRUTH_SYNC_*`, P0 G6).
+- Some older docs still say “no rider product” — **trust SYSTEM_TRUTH + this report + checklist** for 2026-05-25.
 - Stage 0 header still says “not a two-sided marketplace” while Phases 1–4 shipped — semantic tension; Stage 0 means **not production marketplace**, not “no rider app.”
 
 ## 3.2 Dispatch brain — how jobs get to couriers
 
 ### Mode A: Open board (default product story)
 
-1. Jobs sit in `requested` with no `driver_id`.  
-2. Visible via `GET /drivers/available-rides` and ride pool SSE (`ride_pool_broadcast`).  
-3. `POST /drivers/accept-ride/{ride_id}` uses row lock + conditional UPDATE.  
+1. Jobs sit in `requested` with no `driver_id`.
+2. Visible via `GET /drivers/available-rides` and ride pool SSE (`ride_pool_broadcast`).
+3. `POST /drivers/accept-ride/{ride_id}` uses row lock + conditional UPDATE.
 4. Losers receive **409** with transparency payload (`ClaimConflictNotice` in UI).
 
-**Delivery fit:** Courier pool / “grab next job.”  
+**Delivery fit:** Courier pool / “grab next job.”
 **Gap:** No SLA-based ranking in product UI, no distance-to-pickup sort as shipped UX guarantee.
 
 ### Mode B: Sequential cascade (RIDE-003)
 
-- Enabled when `HALFAPP_OPEN_BOARD_DISPATCH=0`.  
-- 30s timeout, 3 attempts, exhaustion → `cancelled` + `lifecycle_reason=no_drivers_available`.  
+- Enabled when `HALFAPP_OPEN_BOARD_DISPATCH=0`.
+- 30s timeout, 3 attempts, exhaustion → `cancelled` + `lifecycle_reason=no_drivers_available`.
 - `ride_dispatch_log` records sent/accepted/declined/timeout/skipped_ineligible.
 
 **Delivery fit:** Dispatcher-style sequential offers — still single courier, not batching.
 
 ### Mode C: Auto-assign (Phase 2)
 
-- `HALFAPP_AUTO_ASSIGN=1` on `POST /rides/`.  
-- `ride_auto_assign.py`: `nearest` or `first_available` via `eligible_dispatch_driver_ids`.  
+- `HALFAPP_AUTO_ASSIGN=1` on `POST /rides/`.
+- `ride_auto_assign.py`: `nearest` or `first_available` via `eligible_dispatch_driver_ids`.
 - Second courier manual accept → 409.
 
 **Delivery fit:** Closer to assigned courier model — still one job, no merchant queue.
 
 ### What dispatch brain refuses
 
-- LLM-chosen assignment.  
-- Multi-stop route optimization.  
-- Batching multiple orders per courier.  
+- LLM-chosen assignment.
+- Multi-stop route optimization.
+- Batching multiple orders per courier.
 - Frontend-side “I claimed it” without server winner.
 
 ## 3.3 Lifecycle brain — execution truth
@@ -351,7 +350,7 @@ HalfApp’s most unusual asset for an MVP-stage repo is **truth discipline as co
 
 **Maps to delivery:** assigned → at pickup → delivering → delivered.
 
-**Recent test drift note:** Two tests failed on `completed → cancelled` rejection — indicates either contract tightening or test/implementation mismatch; **resolve before claiming lifecycle gate frozen**.
+**Recent test drift note:** Prior lifecycle drift on `completed → cancelled` is closed in the current backend green run; keep lifecycle changes inside the closed-lane rescope process.
 
 ## 3.4 Pricing brain — calculation, not settlement
 
@@ -386,8 +385,8 @@ Phases 1–5 documented in `HALFAPP_PAYMENTS_EXECUTION_05_GO.md` — driver reco
 | `route_snapshots` | Foundation table — quote/complete proof rows |
 | `osrm_runtime_truth.py` | Runtime verdict helpers |
 
-**Code path:** GO (mocked HTTP tests).  
-**Runtime:** NO_GO until Portland OSRM up and proof script passes.
+**Code path:** GO (mocked HTTP tests).
+**Runtime:** GO on this host; `prove_osrm_runtime.py` returned `used_fallback=false` for three Portland routes.
 
 **Courier UX:** Leaflet + OSM in-app; **Google Maps external** for turn-by-turn — no embedded Maps API key on active path.
 
@@ -395,32 +394,32 @@ Phases 1–5 documented in `HALFAPP_PAYMENTS_EXECUTION_05_GO.md` — driver reco
 
 ### SIL (Street Intelligence Layer)
 
-- H3 cell aggregates: demand (open jobs) + supply (online drivers) + telemetry speeds.  
-- Endpoints under `/sil/*` for map overlays.  
+- H3 cell aggregates: demand (open jobs) + supply (online drivers) + telemetry speeds.
+- Endpoints under `/sil/*` for map overlays.
 - Migration `0030_sil_foundation`.
 
 ### CRL (City Reality Layer)
 
-- Rule-based “why is this area slow” — commute windows, events, demand imbalance.  
-- `crl_attribution.py`, `crl_labels.py`, admin event injection.  
+- Rule-based “why is this area slow” — commute windows, events, demand imbalance.
+- `crl_attribution.py`, `crl_labels.py`, admin event injection.
 - Migration `0031_crl_foundation`, `0034_sil_crl_snapshots`.
 
 ### Operations upgrade (new since early v0.1)
 
-- **`HALFAPP_SIL_CRL_WORKER_ENABLED`**: background recompute every 60s (SIL) / 5m (CRL).  
-- Reduces reliance on on-read compute at scale.  
+- **`HALFAPP_SIL_CRL_WORKER_ENABLED`**: background recompute every 60s (SIL) / 5m (CRL).
+- Reduces reliance on on-read compute at scale.
 - Proof: `docs/SIL_CRL_WORKER_PROOF_01.md`, `tests/test_sil_crl_worker.py`.
 
 ### Fleet telemetry
 
-- `driver_telemetry_point` — GPS samples from courier app.  
-- `fleet_traffic_heatmap.py` — heatmap from own data, not commercial traffic APIs.  
+- `driver_telemetry_point` — GPS samples from courier app.
+- `fleet_traffic_heatmap.py` — heatmap from own data, not commercial traffic APIs.
 - **`0035_telemetry_retention_index`** + retention job — addresses unbounded growth concern from Report 05.
 
 ### Limits
 
-- Not order-level ETA to customer door.  
-- Cold start: empty H3 at launch.  
+- Not order-level ETA to customer door.
+- Cold start: empty H3 at launch.
 - CRL rules miss unlisted causes (construction, weather without data).
 
 ## 3.8 Advisory AI brain (Ride AI dispatch)
@@ -445,7 +444,7 @@ Phases 1–5 documented in `HALFAPP_PAYMENTS_EXECUTION_05_GO.md` — driver reco
 |--------|------------------|--------|
 | Dispatch transparency | Why courier saw/lost job | **GO** — 409 proof, `ConflictTransparencyMemory.jsx` |
 | Financial transparency | Cents breakdown | **GO** — `ride_pricing` |
-| Route transparency | Which engine used | **Partial** — honest labels; OSRM runtime NO_GO |
+| Route transparency | Which engine used | **GO on runtime proof** — honest labels still required when fallback is used |
 | Audit transparency | Trip list + CSV + audit endpoint | **GO** |
 | Presence transparency | online/stale/busy | **GO** |
 
@@ -455,12 +454,12 @@ Phases 1–5 documented in `HALFAPP_PAYMENTS_EXECUTION_05_GO.md` — driver reco
 
 ## 4.1 Stack and boot
 
-- **FastAPI** + **SQLAlchemy** + **Alembic**  
-- JWT auth + refresh rotation (`0016_refresh_tokens_foundation`)  
-- `run_migrations(engine)` at import in `main.py`  
-- **30+ model modules** explicitly imported before route registration  
-- Production `SECRET_KEY` guard at boot (`production_guards.py`)  
-- Auth rate limit middleware  
+- **FastAPI** + **SQLAlchemy** + **Alembic**
+- JWT auth + refresh rotation (`0016_refresh_tokens_foundation`)
+- `run_migrations(engine)` at import in `main.py`
+- **30+ model modules** explicitly imported before route registration
+- Production `SECRET_KEY` guard at boot (`production_guards.py`)
+- Auth rate limit middleware
 - Event bus loop wired at startup for SSE broadcast
 
 ## 4.2 Mounted routers (product-relevant)
@@ -497,7 +496,7 @@ py -3.11 scripts/print_active_routes.py
 | Telemetry | `POST /me/telemetry`, traffic heatmap |
 | Recovery | active ride recovery endpoints |
 
-## 4.4 Schema domains (Alembic 0001–0035)
+## 4.4 Schema domains (Alembic 0001–0036)
 
 | Domain | Key revisions | Maturity |
 |--------|---------------|----------|
@@ -509,6 +508,7 @@ py -3.11 scripts/print_active_routes.py
 | Driver approval | 0012–0013 | **GO** |
 | Payments execution | 0017–0023 | Flag-gated |
 | Profiles / settings | 0024–0025 | Shipped |
+| Driver readiness | **0036** | Operator-owned vehicle readiness + insurance expiry |
 | Idempotency | 0026 | Write replay protection |
 | Messages / support | 0028 | Foundation |
 | Telemetry | 0029, **0035 retention** | **GO** with retention |
@@ -563,9 +563,9 @@ React 18 · Vite 7 · HashRouter · Leaflet + OpenStreetMap · Playwright E2E su
 
 ## 5.4 Frontend discipline (why experts should trust the UI)
 
-- API boundary: **`/drivers/*` + `/auth/*` only** — dossier paths forbidden.  
-- Production build rejects mock bypass and guard bypass env vars.  
-- Simulation rides labeled when `VITE_ENABLE_RIDE_SIMULATION=true` — still create real DB rows.  
+- API boundary: **`/drivers/*` + `/auth/*` only** — dossier paths forbidden.
+- Production build rejects mock bypass and guard bypass env vars.
+- Simulation rides labeled when `VITE_ENABLE_RIDE_SIMULATION=true` — still create real DB rows.
 - Money and AI claims enforced in CI scripts.
 
 ## 5.5 Courier-specific gaps
@@ -586,29 +586,29 @@ React 18 · Vite 7 · HashRouter · Leaflet + OpenStreetMap · Playwright E2E su
 
 **Shipped:**
 
-- Auth: `/auth/rider/register`, `/auth/rider/login`  
-- Request UI with Nominatim geocoding  
-- `POST /rides/`, status timeline, SSE + poll fallback  
-- Fare estimate: `POST /rides/estimate`  
-- Receipt: `GET /rides/{id}/payment` on complete  
-- History: `GET /rides/my-rides`  
+- Auth: `/auth/rider/register`, `/auth/rider/login`
+- Request UI with Nominatim geocoding
+- `POST /rides/`, status timeline, SSE + poll fallback
+- Fare estimate: `POST /rides/estimate`
+- Receipt: `GET /rides/{id}/payment` on complete
+- History: `GET /rides/my-rides`
 - Playwright: `ride-flow-ui-proof.spec.ts`
 
 **Not shipped:**
 
-- Merchant menu / cart / scheduled window  
-- Real payment method / checkout  
-- Live courier map (status strings primarily)  
+- Merchant menu / cart / scheduled window
+- Real payment method / checkout
+- Live courier map (status strings primarily)
 - Rider-side chat (driver messages exist in backend; rider client N/A)
 
 ## 6.2 `ops-app` (internal control plane)
 
 **Shipped:**
 
-- Admin auth  
-- Rides list/detail, cancel, force-assign  
-- Drivers list + presence + active job  
-- Port **3024**  
+- Admin auth
+- Rides list/detail, cancel, force-assign
+- Drivers list + presence + active job
+- Port **3024**
 - Tests: `test_ops_phase4.py`
 
 **Not shipped:**
@@ -686,45 +686,45 @@ Per `HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md`:
 
 ## 9.1 Product and architecture
 
-1. **Courier-first thesis** — map cockpit for execution, not admin-first dashboard.  
-2. **Backend authority** — rare discipline; UI cannot silently invent dispatch winners.  
-3. **Pickup → dropoff lifecycle** — maps to standard delivery run.  
-4. **Atomic claim lock** — correct for contested pool jobs; concurrency tests exist.  
-5. **Structured 409 transparency** — losing courier sees proof, not opaque failure.  
-6. **Integer-cent pricing** — safe monetary display; financial lock on complete.  
-7. **Honest routing fallback** — `haversine_fallback` labeled — critical for delivery distance honesty.  
-8. **Two-sided loop shipped in code** — four apps, one spine.  
-9. **Auto-assign optional** — can demo dispatcher-style without removing open board.  
-10. **Simulated payments** — receipt + earnings without bank lies.  
-11. **Ops minimal console** — cancel/assign for internal trials.  
-12. **Session recovery API** — `test_active_ride_recovery.py`.  
+1. **Courier-first thesis** — map cockpit for execution, not admin-first dashboard.
+2. **Backend authority** — rare discipline; UI cannot silently invent dispatch winners.
+3. **Pickup → dropoff lifecycle** — maps to standard delivery run.
+4. **Atomic claim lock** — correct for contested pool jobs; concurrency tests exist.
+5. **Structured 409 transparency** — losing courier sees proof, not opaque failure.
+6. **Integer-cent pricing** — safe monetary display; financial lock on complete.
+7. **Honest routing fallback** — `haversine_fallback` labeled — critical for delivery distance honesty.
+8. **Two-sided loop shipped in code** — four apps, one spine.
+9. **Auto-assign optional** — can demo dispatcher-style without removing open board.
+10. **Simulated payments** — receipt + earnings without bank lies.
+11. **Ops minimal console** — cancel/assign for internal trials.
+12. **Session recovery API** — `test_active_ride_recovery.py`.
 13. **Stable car spine** — P0 owner verification script + tests.
 
 ## 9.2 Engineering process (“governance as engineering”)
 
-14. **Stage 0 + SYSTEM_TRUTH** — explicit forbidden claims.  
-15. **Closed P0 lanes** — dispatch/lifecycle/approval stable.  
-16. **35 Alembic migrations** — schema evolution tracked.  
-17. **Per-test DB isolation** — `conftest.py` wipe between tests.  
-18. **E2E locks** — browser proof of courier and requester paths.  
-19. **CI truth scripts** — money/AI/prod guards.  
-20. **docker-compose for P0** — Postgres + OSRM path defined.  
+14. **Stage 0 + SYSTEM_TRUTH** — explicit forbidden claims.
+15. **Closed P0 lanes** — dispatch/lifecycle/approval stable.
+16. **35 Alembic migrations** — schema evolution tracked.
+17. **Per-test DB isolation** — `conftest.py` wipe between tests.
+18. **E2E locks** — browser proof of courier and requester paths.
+19. **CI truth scripts** — money/AI/prod guards.
+20. **docker-compose for P0** — Postgres + OSRM path defined.
 21. **Owner runbook** — three-terminal delivery loop documented.
 
 ## 9.3 Intelligence (explainable, not black-box ML)
 
-22. **SIL/CRL rule-based** — explainable area context for couriers.  
-23. **Background worker option** — operational path for scale.  
-24. **Telemetry retention** — addresses growth risk.  
-25. **Ride AI advisory** — optional hints without dispatch mutation; PII sanitizer + rate limits.  
+22. **SIL/CRL rule-based** — explainable area context for couriers.
+23. **Background worker option** — operational path for scale.
+24. **Telemetry retention** — addresses growth risk.
+25. **Ride AI advisory** — optional hints without dispatch mutation; PII sanitizer + rate limits.
 26. **Route grounding for AI** — ties hints to backend route context when available.
 
 ## 9.4 Extensibility (if you choose a fork)
 
-27. **Dispatch policy abstraction** — zone-based assign conceivable.  
-28. **Route snapshots** — proof of route at quote/complete.  
-29. **Payment phases 1–5** — Stripe without UI lies.  
-30. **Ride messages table** — courier ↔ customer chat foundation.  
+27. **Dispatch policy abstraction** — zone-based assign conceivable.
+28. **Route snapshots** — proof of route at quote/complete.
+29. **Payment phases 1–5** — Stripe without UI lies.
+30. **Ride messages table** — courier ↔ customer chat foundation.
 31. **Idempotency replays** — safer mobile writes.
 
 ---
@@ -735,8 +735,8 @@ Per `HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md`:
 
 | Risk | Severity | Detail |
 |------|----------|--------|
-| PostgreSQL not default dev | **Critical** | Claim lock proven heavily on SQLite; G1 PARTIAL_GO |
-| OSRM runtime NO_GO | **High** | Road distance for pricing may be haversine-labeled fallback |
+| PostgreSQL runtime proof | **Closed for G1/G7** | Fresh PostgreSQL 16 Alembic + claim-race proof passed locally; keep CI proof green |
+| OSRM operational hosting | **Medium** | Runtime proof is GO on this host; staging still needs hosted process monitoring and fallback honesty |
 | Owner courier day pending | **High** | G3 PENDING_OWNER — human sign-off |
 | Backend pytest regression | **Medium** | Currently green on SQLite dev; rerun before release claims |
 | No push notifications | **High** for delivery | Couriers miss assigns without foreground app |
@@ -791,63 +791,63 @@ Per `HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md`:
 
 ## 11.1 EXISTS (may claim with tests)
 
-- [x] Courier JWT auth + refresh rotation  
-- [x] Courier approval gate (DRIVER-002)  
-- [x] Backend presence + heartbeat + stale/disconnected  
-- [x] Open-board dispatch + atomic claim + 409 transparency  
-- [x] Sequential dispatch cascade (flag)  
-- [x] Auto-assign (flag)  
-- [x] Lifecycle through completed (delivered)  
-- [x] Hide/dismiss from pool  
-- [x] Marketplace ledger events (append-only)  
-- [x] `ride_pricing` integer cents + financial lock  
-- [x] `ride_payments` simulated lifecycle  
-- [x] Requester app: request, track, estimate, receipt, history  
-- [x] Ops app: list, cancel, assign, drivers  
-- [x] Trip audit + CSV export  
-- [x] Earnings from completed jobs + ride payments summary  
-- [x] In-app notifications (no push transport)  
-- [x] Route provider metadata + route snapshots foundation  
-- [x] OSRM code path (mocked tests)  
-- [x] SIL/CRL + fleet heatmap + optional background worker  
-- [x] Telemetry retention index + job  
-- [x] Leaflet/OSM courier map  
-- [x] Google Maps external navigation  
-- [x] Ride AI advisory (demo tier) + route grounding tests  
-- [x] Playwright E2E (driver, rider, ride-ai)  
-- [x] Stripe code behind flags (phases 1–5)  
-- [x] docker-compose postgres + osrm services  
-- [x] Owner runbook + verify script  
+- [x] Courier JWT auth + refresh rotation
+- [x] Courier approval gate (DRIVER-002)
+- [x] Backend presence + heartbeat + stale/disconnected
+- [x] Open-board dispatch + atomic claim + 409 transparency
+- [x] Sequential dispatch cascade (flag)
+- [x] Auto-assign (flag)
+- [x] Lifecycle through completed (delivered)
+- [x] Hide/dismiss from pool
+- [x] Marketplace ledger events (append-only)
+- [x] `ride_pricing` integer cents + financial lock
+- [x] `ride_payments` simulated lifecycle
+- [x] Requester app: request, track, estimate, receipt, history
+- [x] Ops app: list, cancel, assign, drivers
+- [x] Trip audit + CSV export
+- [x] Earnings from completed jobs + ride payments summary
+- [x] In-app notifications (no push transport)
+- [x] Route provider metadata + route snapshots foundation
+- [x] OSRM code path (mocked tests)
+- [x] SIL/CRL + fleet heatmap + optional background worker
+- [x] Telemetry retention index + job
+- [x] Leaflet/OSM courier map
+- [x] Google Maps external navigation
+- [x] Ride AI advisory (demo tier) + route grounding tests
+- [x] Playwright E2E (driver, rider, ride-ai)
+- [x] Stripe code behind flags (phases 1–5)
+- [x] docker-compose postgres + osrm services
+- [x] Owner runbook + verify script
 
 ## 11.2 PARTIAL (label honestly)
 
-- [~] OSRM production routing (runtime proof)  
-- [~] PostgreSQL claim-race on owner machine  
-- [~] Alembic upgrade head on fresh PostgreSQL (G7)  
-- [~] Full backend pytest green on SQLite dev — current GO; must be re-run before release claims  
-- [~] Route snapshot read UI in cockpit  
-- [~] CORS production matrix for all four origins  
-- [~] Courier session resilience mid-job  
-- [~] Real PSP product (flags + schema, not default loop)  
-- [~] Ops changes reflected instantly on all clients (poll/SSE latency)  
-- [~] Ride AI production tier  
+- [~] OSRM production routing (runtime proof)
+- [x] PostgreSQL claim-race on fresh local PostgreSQL 16
+- [x] Alembic upgrade head on fresh PostgreSQL (G7)
+- [~] Full backend pytest green on SQLite dev — current GO; must be re-run before release claims
+- [~] Route snapshot read UI in cockpit
+- [~] CORS production matrix for all four origins
+- [~] Courier session resilience mid-job
+- [~] Real PSP product (flags + schema, not default loop)
+- [~] Ops changes reflected instantly on all clients (poll/SSE latency)
+- [~] Ride AI production tier
 
 ## 11.3 DOES NOT EXIST (forbidden to claim)
 
-- [ ] Full DoorDash / Uber Eats marketplace  
-- [ ] Merchant portal, menus, inventory  
-- [ ] Proof of delivery (photo / signature / PIN)  
-- [ ] Multi-stop routes / batching  
-- [ ] Production geocoding proof from address alone  
-- [ ] Marketed live ETA guarantee to customer  
-- [ ] Driver paid-to-bank product proof in default UX  
-- [ ] Wallet / instant pay product  
-- [ ] Push notification delivery to device  
-- [ ] ML demand forecast or LLM job assignment  
-- [ ] City-scale logistics OS  
-- [ ] Commercial paid-traffic APIs as shipped product  
-- [ ] External trusted-courier beta (deferred per policy)  
-- [ ] In-process LLM changing dispatch/pricing/lifecycle  
+- [ ] Full DoorDash / Uber Eats marketplace
+- [ ] Merchant portal, menus, inventory
+- [ ] Proof of delivery (photo / signature / PIN)
+- [ ] Multi-stop routes / batching
+- [ ] Production geocoding proof from address alone
+- [ ] Marketed live ETA guarantee to customer
+- [ ] Driver paid-to-bank product proof in default UX
+- [ ] Wallet / instant pay product
+- [ ] Push notification delivery to device
+- [ ] ML demand forecast or LLM job assignment
+- [ ] City-scale logistics OS
+- [ ] Commercial paid-traffic APIs as shipped product
+- [ ] External trusted-courier beta (deferred per policy)
+- [ ] In-process LLM changing dispatch/pricing/lifecycle
 
 ---
 
@@ -871,23 +871,26 @@ From `CURRENT_TRUTH.md` and `HALFAPP_AI_AGENT_COMPLETION_DIRECTIVES_01.md`:
 
 | Gate | Goal | Status | Report |
 |------|------|--------|--------|
-| **G1** | PostgreSQL + claim-race | **PARTIAL_GO** | `P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md` |
-| **G2** | OSRM runtime proof | **PARTIAL_GO** | `P0_G2_OSRM_RUNTIME_PROOF_01.md`, `SELF_HOSTED_ROUTING_PROOF_V0_3_REPORT.md` |
+| **G1** | PostgreSQL + claim-race | **GO** | `P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md` |
+| **G2** | OSRM runtime proof | **GO** | `P0_G2_OSRM_RUNTIME_PROOF_01.md`, `SELF_HOSTED_ROUTING_PROOF_V0_3_REPORT.md` |
 | **G3** | Owner courier day | **PENDING_OWNER** | `OWNER_COURIER_DAY_REPORT_01.md` |
 | **G4** | Dossier decision | **GO (decision)** | `DOSSIER_PATH_DECISION_01.md` — Path A recommended |
 | **G5** | Surface-freeze tests | **GO** | `P0_G5_SURFACE_FREEZE_REPORT_01.md` |
 | **G6** | SYSTEM_TRUTH sync | **GO** | `P0_G6_SYSTEM_TRUTH_RECONCILIATION_REPORT_01.md` |
-| **G7** | Alembic on PostgreSQL | **PARTIAL_GO** | `P0_G7_ALEMBIC_POSTGRES_PROOF_01.md` |
+| **G7** | Alembic on PostgreSQL | **GO** | `P0_G7_ALEMBIC_POSTGRES_PROOF_01.md` |
 
-**Overall P0: PARTIAL_GO** — next step is **proof**, not **features**.
+**Overall P0: PARTIAL_GO** — next step is **G3 owner day**, not more feature surface.
 
-### G1 acceptance commands
+### G1 proof commands (GO on 2026-05-25)
 
 ```powershell
-docker compose up -d postgres
-# DATABASE_URL=postgresql+psycopg2://halfapp:halfapp@localhost:5432/halfapp
+& 'C:\Program Files\PostgreSQL\16\bin\initdb.exe' -D '<codex-workspace>\pgdata-g1b' -U halfapp --auth=trust --encoding=UTF8
+& 'C:\Program Files\PostgreSQL\16\bin\pg_ctl.exe' -D '<codex-workspace>\pgdata-g1b' -o '-p 55432' -l '<codex-workspace>\pgdata-g1b.log' start
+& 'C:\Program Files\PostgreSQL\16\bin\createdb.exe' -h 127.0.0.1 -p 55432 -U halfapp halfapp_test
 cd backend
-py -3.11 -m pytest tests/test_postgres_claim_race_proof_01.py -q
+$env:DATABASE_URL='postgresql+psycopg2://halfapp@127.0.0.1:55432/halfapp_test'
+py -3.11 -m alembic upgrade head
+py -3.11 -m pytest -q tests/test_alembic_postgres_upgrade_head.py tests/test_postgres_claim_race_proof_01.py
 ```
 
 ### G2 acceptance commands
@@ -915,10 +918,6 @@ START
   │    NO → Fix drift FIRST
   │    YES → continue
   │
-  ├─ Can you run docker compose postgres + claim-race green?
-  │    NO → G1 blocks staging claim
-  │    YES → G1 local GO
-  │
   ├─ Can you run OSRM proof script exit 0?
   │    NO → pricing/route claims stay “fallback honest” only
   │    YES → G2 GO — update SELF_HOSTED_ROUTING proof doc
@@ -936,30 +935,30 @@ END
 
 **Read in order (2–3 hours):**
 
-1. This report — Part 0 + Part I + Part XI  
-2. `docs/SYSTEM_TRUTH.md`  
-3. `docs/CURRENT_TRUTH.md` — P0 table  
-4. `docs/HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md`  
-5. `docs/PRODUCT_BOUNDARY_STAGE0.md` — forbidden claims  
-6. One proof doc for your concern: claim race, OSRM, or ride-flow E2E  
+1. This report — Part 0 + Part I + Part XI
+2. `docs/SYSTEM_TRUTH.md`
+3. `docs/CURRENT_TRUTH.md` — P0 table
+4. `docs/HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md`
+5. `docs/PRODUCT_BOUNDARY_STAGE0.md` — forbidden claims
+6. One proof doc for your concern: claim race, OSRM, or ride-flow E2E
 
 **Do not read first:** `HALFAPP_DRIVER_PROGRAM_MASTER_REPORT_01.md` (2000+ lines — historical), raw `frontend/`, or Stripe modules without Stage 0 context.
 
 ## 14.3 If you are an AI coding agent
 
-1. Read `HALFAPP_AI_AGENT_COMPLETION_DIRECTIVES_01.md` — work P0 only until GO.  
-2. Never modify closed lanes in `HALFAPP_AGENT_ACTION_DIRECTIVES.md`.  
-3. After each task: update `CURRENT_TRUTH.md` + short `*_REPORT.md`.  
+1. Read `HALFAPP_AI_AGENT_COMPLETION_DIRECTIVES_01.md` — work P0 only until GO.
+2. Never modify closed lanes in `HALFAPP_AGENT_ACTION_DIRECTIVES.md`.
+3. After each task: update `CURRENT_TRUTH.md` + short `*_REPORT.md`.
 4. Run `assert-no-money-claims` / `assert-no-ai-providers` when touching driver UI.
 
 ## 14.4 What NOT to do next (anti-patterns)
 
-- Rebrand entire codebase ride→job in one PR without program plan.  
-- Market as DoorDash/Lyft competitor.  
-- Add LLM auto-dispatch without governance layer.  
-- Wire dossier endpoints into `driver-app/src/utils/api.js`.  
-- Enable Stripe in demos without updating truth docs and UI guards.  
-- Add merchant portal + POD + push + Stripe simultaneously (“illusion breadth”).  
+- Rebrand entire codebase ride→job in one PR without program plan.
+- Market as DoorDash/Lyft competitor.
+- Add LLM auto-dispatch without governance layer.
+- Wire dossier endpoints into `driver-app/src/utils/api.js`.
+- Enable Stripe in demos without updating truth docs and UI guards.
+- Add merchant portal + POD + push + Stripe simultaneously (“illusion breadth”).
 
 ---
 
@@ -970,11 +969,11 @@ Rate 1–5 (1 = prototype, 5 = production delivery marketplace):
 | Dimension | Score | Rationale |
 |-----------|-------|-----------|
 | Truth discipline / governance brain | **5** | Unusual at MVP stage; explicit forbidden claims |
-| Dispatch correctness | **4** | Strong claim lock; PG proof partial |
+| Dispatch correctness | **4** | Strong claim lock; PG Alembic + claim-race proof GO |
 | Lifecycle integrity | **4** | Guarded + tested; completed→cancel returns structured 409 |
 | Delivery-appropriate courier UX | **3** | Map cockpit good; no POD, no push |
 | Financial honesty | **4** | Ledger + simulated; UI guarded |
-| Routing honesty | **3** | Fallback labeled; OSRM runtime missing |
+| Routing honesty | **3–4** | OSRM runtime proof GO on this host; fallback remains labeled when OSRM is down |
 | Requester loop | **3** | Shipped minimal; not consumer polish |
 | Area intelligence (SIL/CRL) | **3–4** | v0.1 + worker path |
 | Ops console | **2** | Minimal ops-app |
@@ -1023,14 +1022,14 @@ Rate 1–5 (1 = prototype, 5 = production delivery marketplace):
 
 HalfApp is best understood as **two intertwined systems**:
 
-1. **A delivery-driver execution application** — four apps, one backend authority, job lifecycle from request through delivered, earnings and audit, growing area intelligence, optional advisory AI.  
+1. **A delivery-driver execution application** — four apps, one backend authority, job lifecycle from request through delivered, earnings and audit, growing area intelligence, optional advisory AI.
 2. **A governance brain** — prevents the repository’s size, Stripe depth, dossier spine, and “ride” vocabulary from convincing you that production last-mile delivery is already done.
 
 **The next step is not “add every marketplace feature.”** It is:
 
-1. **Keep backend pytest green** — latest SQLite dev run is 383 passed, 9 skipped.  
-2. **Close P0 gates** — PostgreSQL claim-race, OSRM runtime, owner courier day.  
-3. **Align language** with delivery (§0.3) when speaking to experts and yourself.  
+1. **Keep backend pytest green** — latest SQLite dev run is 383 passed, 9 skipped.
+2. **Close P0 gates** — owner courier day remains.
+3. **Align language** with delivery (§0.3) when speaking to experts and yourself.
 4. **Pick one delivery fork** — proof-of-delivery, merchant payload, real Stripe pilot, or staging hardening only — after gates pass.
 
 When this report conflicts with older docs that deny a rider or ops product, trust **`HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md`**, **`SYSTEM_TRUTH.md` (2026-05-25)**, and **`OWNER_INTERNAL_TEST_RUNBOOK_01.md`**.
@@ -1039,7 +1038,7 @@ When this report conflicts with `CURRENT_TRUTH.md` on test counts or Alembic hea
 
 ---
 
-**Version:** 6.0  
-**Lines:** ~720  
-**Author:** Program documentation pass — codebase + docs + live pytest reconciliation (2026-05-25)  
+**Version:** 6.0
+**Lines:** ~720
+**Author:** Program documentation pass — codebase + docs + live pytest reconciliation (2026-05-25)
 **Next review trigger:** P0 gate closure · Alembic head change · pytest regression · owner G3 sign-off · external investor review

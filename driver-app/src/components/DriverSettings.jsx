@@ -636,6 +636,16 @@ export default function DriverSettings() {
                 value={accountProfile?.license_no || '—'}
                 testId="settings-license-no-readonly"
               />
+              <Field
+                label="Insurance expiry (ops reviewed)"
+                value={accountProfile?.insurance_expires_at ? formatSeenAt(accountProfile.insurance_expires_at) : 'Manual operations required'}
+                testId="settings-insurance-expiry-readonly"
+              />
+              <Field
+                label="Vehicle readiness (ops reviewed)"
+                value={accountProfile?.vehicle_ready ? 'Ready' : 'Manual operations required'}
+                testId="settings-vehicle-ready-readonly"
+              />
               {vehicleError ? (
                 <p className="text-xs" style={{ color: 'var(--ha-red, #fca5a5)' }} data-testid="settings-vehicle-error">
                   {vehicleError}
@@ -656,8 +666,8 @@ export default function DriverSettings() {
                 </p>
               ) : null}
               <p className="text-xs ha-truth-note">
-                License number is locked at registration. Real document upload (photo, verification)
-                is not part of this internal product — see launch blockers D1–D5.
+                License number is locked at registration. Insurance expiry and vehicle readiness are
+                operations-reviewed fields; saving this form does not approve the vehicle by itself.
               </p>
             </div>
           </section>

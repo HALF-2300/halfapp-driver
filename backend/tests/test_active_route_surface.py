@@ -38,6 +38,7 @@ ACTIVE_PATHS = {
     # admin — driver approval + rides + CRL curation
     "/admin/drivers",
     "/admin/drivers/{driver_id}/approval",
+    "/admin/drivers/{driver_id}/readiness",
     "/admin/rides",
     "/admin/rides/{ride_id}",
     "/admin/rides/{ride_id}/assign",
@@ -135,6 +136,7 @@ ACTIVE_PATHS = {
 MOUNTED_ADMIN_PATHS = {
     "/admin/drivers",
     "/admin/drivers/{driver_id}/approval",
+    "/admin/drivers/{driver_id}/readiness",
     "/admin/rides",
     "/admin/rides/{ride_id}",
     "/admin/rides/{ride_id}/assign",

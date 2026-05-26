@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatDate, listDrivers, statusBadgeClass } from '../utils/api.js'
+import { formatDate, listDrivers, statusBadgeClass, updateDriverReadiness } from '../utils/api.js'
 
 const POLL_MS = 5000
 
@@ -9,6 +9,7 @@ export default function DriverListPage() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(null)
+  const [savingId, setSavingId] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -29,6 +30,26 @@ export default function DriverListPage() {
     const timer = setInterval(load, POLL_MS)
     return () => clearInterval(timer)
   }, [load])
+
+  const markVehicleReady = async (driver) => {
+    setSavingId(driver.id)
+    setError(null)
+    try {
+      const expires = new Date()
+      expires.setFullYear(expires.getFullYear() + 1)
+      await updateDriverReadiness(driver.id, {
+        vehicle_ready: true,
+        insurance_expires_at: expires.toISOString(),
+        insurance_policy: driver.insurance?.policy || `OPS-${driver.id}`,
+        reason: 'ops_closed_beta_readiness',
+      })
+      await load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingId(null)
+    }
+  }
 
   return (
     <div>
@@ -59,8 +80,10 @@ export default function DriverListPage() {
                 <th>Status</th>
                 <th>Online</th>
                 <th>Approval</th>
+                <th>Readiness</th>
                 <th>Active ride</th>
                 <th>Presence</th>
+                <th>Ops action</th>
               </tr>
             </thead>
             <tbody>
@@ -79,6 +102,12 @@ export default function DriverListPage() {
                   <td>{driver.online ? 'Yes' : 'No'}</td>
                   <td>{driver.approval?.status || '—'}</td>
                   <td>
+                    <div className="text-xs">
+                      <div>Vehicle: {driver.readiness?.vehicle_ready ? 'Ready' : 'Needs review'}</div>
+                      <div>Insurance: {driver.insurance?.expires_at ? formatDate(driver.insurance.expires_at) : 'Expiry missing'}</div>
+                    </div>
+                  </td>
+                  <td>
                     {driver.active_ride_id ? (
                       <Link to={`/rides/${driver.active_ride_id}`} className="text-orange-300 hover:underline">
                         #{driver.active_ride_id}
@@ -88,11 +117,22 @@ export default function DriverListPage() {
                     )}
                   </td>
                   <td>{driver.presence?.effective_state || '—'}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="ops-btn"
+                      disabled={savingId === driver.id}
+                      onClick={() => markVehicleReady(driver)}
+                      data-testid={`driver-readiness-ready-${driver.id}`}
+                    >
+                      {savingId === driver.id ? 'Saving…' : 'Mark ready'}
+                    </button>
+                  </td>
                 </tr>
               ))}
               {!drivers.length ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-[var(--ops-muted)]">
+                  <td colSpan={9} className="text-center text-[var(--ops-muted)]">
                     No drivers found
                   </td>
                 </tr>

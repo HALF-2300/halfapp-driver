@@ -30,7 +30,7 @@ def test_alembic_upgrade_head_on_postgresql():
         command.upgrade(config, "head")
 
     version = engine.connect().execute(text("SELECT version_num FROM alembic_version")).scalar()
-    assert version == "0035_telemetry_retention_index"
+    assert version == "0036_driver_readiness_fields"
 
     tables = set(inspect(engine).get_table_names())
     for required in ("rides", "users", "ride_claim_attempts", "marketplace_ledger_events"):

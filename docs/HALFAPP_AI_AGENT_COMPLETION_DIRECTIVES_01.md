@@ -147,12 +147,12 @@ Do not start until P0 + P1 courier-complete items are GO. Pick **one**: proof-of
 
 | Gate | Status |
 |------|--------|
-| G1 | **PARTIAL_GO** — expanded scope: folded G7; PG runtime pending owner — `P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md` |
-| G2 | **PARTIAL_GO** — code path ready; OSRM runtime pending owner — `P0_G2_OSRM_RUNTIME_PROOF_01.md` |
-| G7 | **CLOSED-FOLDED** into G1 — `ALEMBIC_POSTGRES_COMPATIBILITY_AUDIT_01.md` (no separate gate) |
+| G1 | **GO** — fresh PostgreSQL 16 `alembic upgrade head` + claim-race proof passed locally — `P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md` |
+| G2 | **GO** — `prove_osrm_runtime.py` exit 0 and real OSRM backend tests passed — `P0_G2_OSRM_RUNTIME_PROOF_01.md` |
+| G7 | **GO** — fresh PostgreSQL 16 Alembic proof passed — `P0_G7_ALEMBIC_POSTGRES_PROOF_01.md`, `ALEMBIC_POSTGRES_COMPATIBILITY_AUDIT_01.md` |
 | G3 | **PENDING_OWNER** — template only |
 | G4 | **GO** — decision doc written; execution deferred |
 | G5 | **GO** — surface tests pass |
 | G6 | **GO** — `SYSTEM_TRUTH.md` reconciled |
 
-**Overall P0:** **PARTIAL_GO** — owner closes G1 PG + G2 OSRM + G3 courier day; then agent P1.1 (push, migration 0036).
+**Overall P0:** **PARTIAL_GO** — remaining gate is G3 owner courier day; then agent P1.1 (push, migration 0036).

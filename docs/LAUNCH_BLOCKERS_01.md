@@ -22,8 +22,8 @@ This document is the single canonical list of what still must be true before Hal
 
 | ID | Blocker | Status | Closes with |
 |----|---------|--------|-------------|
-| **G1** | PostgreSQL local proof: `alembic upgrade head` on a real PG, 10-driver claim race shows 1 winner / 9×409 | 🟡 PARTIAL | Owner runs `docker compose up -d postgres`, then `pytest tests/test_alembic_postgres_upgrade_head.py tests/test_postgres_claim_race_proof_01.py -q`. Output captured to `docs/P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md` |
-| **G2** | OSRM runtime proof: `scripts/prove_osrm_runtime.py` exits 0; a real ride records `route_provider=osrm_self_hosted`, `used_fallback=false` | 🟡 PARTIAL | Owner runs `cd docker/osrm-portland && docker compose up -d`, then `py -3.11 scripts/prove_osrm_runtime.py`. Output captured to `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md` |
+| **G1** | PostgreSQL local proof: `alembic upgrade head` on a real PG, 10-driver claim race shows 1 winner / 9×409 | 🟢 **CLOSED 2026-05-25** | Fresh PostgreSQL 16 temporary cluster; Alembic head + claim-race tests passed. Evidence: `docs/P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md`, `docs/P0_G7_ALEMBIC_POSTGRES_PROOF_01.md` |
+| **G2** | OSRM runtime proof: `scripts/prove_osrm_runtime.py` exits 0; a real route records `route_provider=osrm_self_hosted`, `used_fallback=false` | 🟢 **CLOSED 2026-05-25** | `prove_osrm_runtime.py` exit 0 on 3 Portland routes; real OSRM pytest passed. Evidence: `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md` |
 | **E2E** | Live-stack `session-recovery.spec.ts` passes (3 STATE × refresh + skeleton scenario) | 🟢 **CLOSED 2026-05-25** | Exit code 0 on this machine; 3 passed + 1 flaky on retry (test-timing, not product). Real bug fixed: `SilMapLayer.jsx` heat-layer race that crashed cockpit to ErrorBoundary. Evidence: `docs/HALFAPP_DELIVERY_BLOCKER_CLOSURE_PASS_01.md` |
 | **G3** | Owner courier day: full rider → driver → complete loop on owner's own vehicle (or controlled local area) | 🔴 OPEN | Owner walks `docs/OWNER_COURIER_DAY_WALKTHROUGH_01.md` and fills sign-off in `docs/OWNER_COURIER_DAY_REPORT_01.md`. AI agents are forbidden from marking this GO. |
 
@@ -133,7 +133,7 @@ This document is the single canonical list of what still must be true before Hal
 | ID | Blocker | Status | Closes with |
 |----|---------|--------|-------------|
 | **PR1** | Real-time presence (WebSocket or SSE, not polling) | 🟡 PARTIAL (SSE on pool only) | Full presence stream on driver presence |
-| **PR2** | Live ETA from proven routing | 🟡 BLOCKED ON G2 | OSRM runtime GO + ETA wired |
+| **PR2** | Live ETA from proven routing | 🟡 PARTIAL | OSRM runtime GO; ETA product wiring/SLA still not public-launch ready |
 | **PR3** | Background location with battery-aware tracking | 🔴 OPEN | Implemented + measured battery cost |
 | **PR4** | Rider support flow that reaches a human | 🟡 IN-APP HELP ONLY | Real support channel + SLA |
 | **PR5** | Driver earnings statement (per period, downloadable) | 🟡 PARTIAL | PDF / CSV export validated |
@@ -151,6 +151,8 @@ This document is the single canonical list of what still must be true before Hal
 | **S2** | Token rotation + revocation | Migration 0016, `tests/test_auth_refresh_rotation.py`, `settings-logout-all-btn` |
 | **S3** | CORS hardening | `tests/test_production_guards.py` |
 | **S4** | Structured request logging | `backend/middleware/request_logging.py` (7 tests pass) |
+| **G1** | PostgreSQL Alembic + claim-race proof | `docs/P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md`, `docs/P0_G7_ALEMBIC_POSTGRES_PROOF_01.md` |
+| **G2** | OSRM runtime proof | `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md`, `docs/SELF_HOSTED_ROUTING_PROOF_V0_3_REPORT.md` |
 | **Internal product completion** | All 18 audited areas | `docs/HALFAPP_INTERNAL_PRODUCT_COMPLETION_PASS_01.md` (owner-accepted 2026-05-25) |
 | **E2E (Tier 1)** | Live-stack session recovery on this machine | `docs/HALFAPP_DELIVERY_BLOCKER_CLOSURE_PASS_01.md` (2026-05-25); real bug fixed in `SilMapLayer.jsx` |
 

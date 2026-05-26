@@ -36,10 +36,11 @@ def http(method: str, path: str, body: dict | None = None, token: str | None = N
         raise RuntimeError(f"{method} {path} -> {exc.code}: {detail}") from exc
 
 
-def _approve_driver_in_db(driver_email: str) -> None:
+def _approve_driver_in_db(driver_email: str) -> tuple[int, str]:
     from database import SessionLocal
     from models.user import User, UserRole
     from models.driver_approval import DriverApprovalStatus
+    from services.auth import create_access_token
     from services.driver_approval import set_driver_approval
 
     db = SessionLocal()
@@ -73,6 +74,7 @@ def _approve_driver_in_db(driver_email: str) -> None:
             reviewed_by=admin.id,
         )
         db.commit()
+        return driver.id, create_access_token(sub=admin.email, role=admin.role.value)
     finally:
         db.close()
 
@@ -111,11 +113,37 @@ def main() -> int:
             "license_no": f"OWN{stamp}",
         },
     )
-    _approve_driver_in_db(driver_email)
+    driver_id, admin_token = _approve_driver_in_db(driver_email)
     driver_token = http("POST", "/auth/login", {"email": driver_email, "password": password_d})[
         "access_token"
     ]
     print("  [ok] driver register + DB approval + login")
+
+    http(
+        "PUT",
+        "/drivers/profile",
+        {
+            "vehicle_make": "Toyota",
+            "vehicle_model": "Prius",
+            "vehicle_year": 2020,
+            "license_plate": f"OWN{stamp[:4]}",
+            "insurance_policy": f"INS-{stamp}",
+        },
+        token=driver_token,
+    )
+    print("  [ok] driver submitted vehicle + insurance policy")
+
+    http(
+        "PATCH",
+        f"/admin/drivers/{driver_id}/readiness",
+        {
+            "insurance_expires_at": "2027-05-25T00:00:00Z",
+            "vehicle_ready": True,
+            "reason": "owner_runbook_verify",
+        },
+        token=admin_token,
+    )
+    print("  [ok] ops reviewed vehicle + insurance expiry readiness")
 
     http(
         "PATCH",

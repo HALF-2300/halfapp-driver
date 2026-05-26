@@ -21,10 +21,11 @@ Follow: `docs/OWNER_INTERNAL_TEST_RUNBOOK_01.md`
 |------|------|-------------------------|
 | Requester registers and requests job (pickup → dropoff) | ☐ | |
 | Courier goes online (approved driver) | ☐ | |
+| Courier clears readiness gate: profile, vehicle, license, insurance, approval | ☐ | |
 | Courier accepts OR receives auto-assign | ☐ | Flag: `HALFAPP_AUTO_ASSIGN=1` |
 | Arrive pickup → Start → Complete | ☐ | |
 | Requester sees **completed** + receipt | ☐ | |
-| Courier earnings shows captured payment row | ☐ | |
+| Courier receipt / earnings shows recorded obligation, not payout | ☐ | |
 | Ops lists ride with status + payment | ☐ | |
 | No Postman / manual DB edits used | ☐ | |
 

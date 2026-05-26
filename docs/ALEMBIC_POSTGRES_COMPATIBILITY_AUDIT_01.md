@@ -139,4 +139,4 @@ CI: `.github/workflows/halfapp-driver-ci.yml` → job `postgres-claim-race`.
 ## Known limitations
 
 - **PostGIS:** Geometry column on `active_drivers` only when extension is installed; CI `postgres:16` image typically has no PostGIS — migration falls back to lat/lng index.
-- **Revision chain gap:** `0032_ride_payments_foundation` → `0034_sil_crl_snapshots` (no `0033` file; reserved for P1.1 push). Head: `0035_telemetry_retention_index`.
+- **Revision chain gap:** `0032_ride_payments_foundation` → `0034_sil_crl_snapshots` (no `0033` file; reserved historically). Head: `0036_driver_readiness_fields`.

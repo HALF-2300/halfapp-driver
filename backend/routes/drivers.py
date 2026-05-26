@@ -2415,8 +2415,14 @@ def get_driver_profile(
             "model": _vehicle_field(driver_user.vehicle_model),
             "plate": _vehicle_field(driver_user.license_plate),
         },
+        "vehicle_year": driver_user.vehicle_year,
+        "vehicle_ready": bool(driver_user.vehicle_ready),
         "insurance_policy": driver_user.insurance_policy,
-        "insurance_expires_at": None,
+        "insurance_expires_at": (
+            driver_user.insurance_expires_at.isoformat()
+            if driver_user.insurance_expires_at
+            else None
+        ),
         "read_only": True,
     }
 
@@ -2469,6 +2475,12 @@ def update_driver_profile(
             "vehicle_year": driver_user.vehicle_year,
             "license_plate": driver_user.license_plate,
             "insurance_policy": driver_user.insurance_policy,
+            "insurance_expires_at": (
+                driver_user.insurance_expires_at.isoformat()
+                if driver_user.insurance_expires_at
+                else None
+            ),
+            "vehicle_ready": bool(driver_user.vehicle_ready),
             "availability": driver_user.availability,
             "last_latitude": driver_user.last_latitude,
             "last_longitude": driver_user.last_longitude,

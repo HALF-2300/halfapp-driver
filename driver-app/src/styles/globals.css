@@ -417,12 +417,11 @@ h1, h2, h3, h4, h5, h6 {
 
 .driver-status-bar,
 .map-overlay-header {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 8px 10px;
   border-radius: var(--ha-radius-lg);
   background: var(--ha-surface);
   backdrop-filter: blur(18px);
@@ -431,7 +430,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .driver-status-bar__brand {
-  flex: 1 1 72px;
+  min-width: 0;
 }
 
 .driver-status-bar__title {
@@ -451,8 +450,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .driver-status-bar__diag {
-  min-height: 44px;
-  padding: 0 12px;
+  min-height: 36px;
+  padding: 0 10px;
   border-radius: 999px;
   border: 1px solid var(--halfapp-border);
   font-size: 11px;
@@ -494,7 +493,7 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   max-width: 420px;
   border-radius: 24px 24px 20px 20px;
-  background: rgba(7, 12, 26, 0.88);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(7, 12, 26, 0.98));
   backdrop-filter: blur(22px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
@@ -631,8 +630,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .marketplace-bottom-sheet--expanded {
-  max-height: min(52vh, 420px);
+  max-height: min(62vh, 520px);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .claim-conflict-proof-panel {
@@ -997,4 +997,51 @@ h1, h2, h3, h4, h5, h6 {
   color: #64748b;
   margin-top: 0.35rem;
   line-height: 1.4;
+}
+
+/* Ride offer: pickup → dropoff route visual */
+.ride-request-route {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 12px 14px;
+}
+
+.ride-request-route__stop {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ride-request-route__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.ride-request-route__dot--pickup {
+  background: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.ride-request-route__dot--dropoff {
+  background: #34d399;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18);
+}
+
+.ride-request-route__line {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  margin: 6px 0 6px 4.5px;
+  align-self: flex-start;
+}
+
+/* ha-section top padding utility for first section after header */
+.ha-section--top {
+  padding-top: 1rem;
 }

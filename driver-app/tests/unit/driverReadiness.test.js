@@ -27,6 +27,8 @@ const readyProfile = {
     plate: 'READY1',
   },
   insurance_policy: 'POLICY-1',
+  insurance_expires_at: '2027-05-25T00:00:00Z',
+  vehicle_ready: true,
 }
 
 describe('DriverReadinessV1', () => {
@@ -47,6 +49,21 @@ describe('DriverReadinessV1', () => {
     assert.ok(codes.includes(READINESS_BLOCKERS.LICENSE_DOCS_MISSING))
     assert.ok(codes.includes(READINESS_BLOCKERS.INSURANCE_MISSING))
     assert.ok(codes.includes(READINESS_BLOCKERS.APPROVAL_REQUIRED))
+  })
+
+  it('blocks when vehicle or insurance expiry has not been reviewed by operations', () => {
+    const readiness = buildDriverReadiness({
+      accountProfile: {
+        ...readyProfile,
+        vehicle_ready: false,
+        insurance_expires_at: null,
+      },
+    })
+
+    assert.equal(readiness.canGoOnline, false)
+    const codes = readiness.blockers.map((item) => item.code)
+    assert.ok(codes.includes(READINESS_BLOCKERS.VEHICLE_NOT_READY))
+    assert.ok(codes.includes(READINESS_BLOCKERS.INSURANCE_EXPIRY_MISSING))
   })
 
   it('allows going online when beta readiness requirements are satisfied', () => {
@@ -85,6 +102,7 @@ describe('Driver app real-app shaping source guards', () => {
     assert.match(card, /You are not ready to go online yet|readiness\?\.headline/)
     assert.match(card, /Reason:/)
     assert.match(card, /readiness-action-btn/)
+    assert.match(card, /Manual operations readiness is recorded/)
   })
 
   it('ride request card exposes accept, decline, expired, conflict, and obligation states', () => {

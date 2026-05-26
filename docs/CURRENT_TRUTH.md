@@ -26,14 +26,12 @@ Locked in by `HALFAPP_INTERNAL_PRODUCT_COMPLETION_PASS_01`.
 - HalfApp is ready for **real delivery operations**
 - HalfApp is ready for **legal launch** in any jurisdiction
 - HalfApp executes **real payouts** to driver bank accounts
-- HalfApp uses **production routing** (OSRM runtime not proven)
+- HalfApp has a public-launch-ready routing SLA
 - HalfApp is **deployed to the App Store or Play Store**
 - HalfApp is a **marketplace**
 
 External-launch readiness (Phases B–F in `docs/HALFAPP_REALITY_REPORT_01.md`) remains **NO_GO** until each blocked gate is proven:
 
-- G1 Postgres local proof (Docker)
-- G2 OSRM runtime proof (Docker)
 - G3 Owner courier day (human walkthrough)
 - Live-stack E2E session recovery
 - Legal entity / insurance / hosting / mobile stores / public launch
@@ -61,7 +59,7 @@ Reconciled backlog: `docs/BACKLOG.md`.
 | **Settlement obligation rows** | **GO (boundary)** | `settlement_entries` — not payout execution; `tests/test_ride_settlement_ledger.py` |
 | **Route snapshots** | **FOUNDATION** | Table + quote/complete rows; `tests/test_route_snapshots_foundation.py` |
 | **OSRM code path** | **GO** | `tests/test_osrm_self_hosted_routing.py` (mocked HTTP) |
-| **OSRM runtime** | **NO_GO** | `docs/SELF_HOSTED_ROUTING_PROOF_V0_3_REPORT.md` — run `scripts/prove_osrm_runtime.py` |
+| **OSRM runtime** | **GO** | `scripts/prove_osrm_runtime.py` exit 0; real OSRM pytest passed — `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md`, `docs/SELF_HOSTED_ROUTING_PROOF_V0_3_REPORT.md` |
 | **Payments / PSP** | **PARTIAL** | Phases 1–5: execution + reconciliation + Connect payout visibility (`PAYOUTS_ENABLED`); **no** bank deposit UI claims |
 | **Token revocation / refresh** | **GO** | `0016_refresh_tokens_foundation`; `tests/test_auth_refresh_rotation.py` |
 | **Production SECRET_KEY** | **GO** | `HALFAPP_PRODUCTION_SECRET_KEY_GUARD_01`; `tests/test_production_guards.py` |
@@ -70,7 +68,7 @@ Reconciled backlog: `docs/BACKLOG.md`.
 | **Engineering Intelligence Safe Shell** | **GO — LOCAL_CONTEXT_ONLY** | `#/engineering-intelligence`; `tests/test_engineering_intelligence_status.py` |
 | **Ride product AI/LLM inference** | **NOT IMPLEMENTED** | No model inference on dispatch/pricing/lifecycle |
 | **Backend test gate** | **GO** | `py -3.11 -m pytest -q --tb=no` — 383 passed, 9 skipped (SQLite dev, 2026-05-25); `docs/BACKEND_PYTEST_DRIFT_CLOSURE_01.md` |
-| **Driver closed-beta readiness flow** | **GO** | DriverReadinessV1 + online gate + ride offer states + completion receipt; `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`; `npm test` 158 passed; `npm run build` passed |
+| **Driver closed-beta readiness flow** | **GO** | DriverReadinessV1 + online gate + ride offer states + completion receipt; `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`, `docs/DRIVER_READINESS_OPERATOR_DATA_PASS_01.md`; `npm test` 159 passed; `npm run build` passed; smoke loop Playwright passed |
 | **Ride-flow UI proof** | **GO** | `docs/RIDE_FLOW_UI_PROOF_V0_2_STATUS.md` |
 | **Two-sided loop (code)** | **SHIPPED** | `docs/HALFAPP_TWO_SIDED_EXECUTION_CHECKLIST_01.md` Phases 1–4 |
 | **Stable car API spine** | **GO** | `tests/test_stable_car_p0_01.py`, `scripts/owner_runbook_verify.py` |
@@ -84,15 +82,15 @@ Reconciled backlog: `docs/BACKLOG.md`.
 
 | Gate | Status | Report |
 |------|--------|--------|
-| **G1** Postgres claim-race | **PARTIAL_GO** | CI `alembic upgrade head` + claim-race; local PG proof pending — `P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md` |
-| **G2** OSRM runtime | **PARTIAL_GO** | Code path ready; owner runtime pending — `P0_G2_OSRM_RUNTIME_PROOF_01.md` |
-| **G7** Alembic on PostgreSQL | **PARTIAL_GO** | Audit + fixes + CI migrations; fresh PG proof pending — `P0_G7_ALEMBIC_POSTGRES_PROOF_01.md`, `ALEMBIC_POSTGRES_COMPATIBILITY_AUDIT_01.md` |
+| **G1** Postgres claim-race | **GO** | Fresh PostgreSQL 16 temporary cluster: `alembic upgrade head` + claim-race tests passed — `P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md` |
+| **G2** OSRM runtime | **GO** | Portland OSRM runtime proof passed with `used_fallback=false`; backend real OSRM tests passed — `P0_G2_OSRM_RUNTIME_PROOF_01.md` |
+| **G7** Alembic on PostgreSQL | **GO** | Fresh PostgreSQL 16 `alembic upgrade head` passed through `0036_driver_readiness_fields`; pytest PG proof passed — `P0_G7_ALEMBIC_POSTGRES_PROOF_01.md`, `ALEMBIC_POSTGRES_COMPATIBILITY_AUDIT_01.md` |
 | **G3** Owner courier day | **PENDING_OWNER** | `OWNER_COURIER_DAY_REPORT_01.md` |
 | **G4** Dossier Path A/B | **GO (decision only)** | `DOSSIER_PATH_DECISION_01.md` — recommend Path A; no execution |
 | **G5** Surface-freeze | **GO** | `P0_G5_SURFACE_FREEZE_REPORT_01.md` |
 | **G6** SYSTEM_TRUTH sync | **GO** | `P0_G6_SYSTEM_TRUTH_RECONCILIATION_REPORT_01.md` |
 
-**Overall P0:** **PARTIAL_GO** — owner runtime: G1 PG, G2 OSRM, G3 courier day; G7 PG proof (CI or local); then P1.1 (0036 push).
+**Overall P0:** **PARTIAL_GO** — remaining gate: G3 owner courier day; then P1.1 (0036 push).
 
 ---
 
@@ -109,11 +107,11 @@ Do not modify claim-lock, lifecycle guards, approval gates, cascade logic, or pr
 
 ## Next executable work queue
 
-**P0 (close gates):** G1 local PG proof · G2 `prove_osrm_runtime.py` exit 0 · G3 owner fills `OWNER_COURIER_DAY_REPORT_01.md` · G4 owner picks Path A or B
+**P0 (close gates):** G3 owner fills `OWNER_COURIER_DAY_REPORT_01.md`
 
 **P1 (blocked until P0 GO):** Push (web) · stale presence policy · session E2E re-run
 
-**Driver App Real-App Shaping Pass:** **GO** — `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`; DriverReadinessV1 gates go-online for profile/vehicle/docs/insurance/backend/manual approval blockers; ride offer states include expired/conflict; completion receipt states recorded obligation + payout not executed; `npm test` 158 passed; `npm run build` passed
+**Driver App Real-App Shaping Pass:** **GO** — `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`, `docs/DRIVER_READINESS_OPERATOR_DATA_PASS_01.md`; DriverReadinessV1 gates go-online for profile/vehicle/docs/insurance/backend/manual approval blockers; ops now owns vehicle readiness + insurance expiry via `/admin/drivers/{driver_id}/readiness`; ride offer states include expired/conflict; completion receipt states recorded obligation + payout not executed; `npm test` 159 passed; `npm run build` passed; `npx playwright test tests/smoke-mvp.spec.ts` passed
 
 **P1.3 Delivery vocabulary pass (extended):** **GO** — `docs/P1_3_DELIVERY_VOCABULARY_PASS_01.md`; extended to MapHome, DriverSettings, TripAuditReceipt, cockpit components (MarketplaceBottomSheet, DiagnosticsDrawer, RideChatPanel, EarningsVisibilityPanel, StreetIntelligencePanel); 150 npm tests pass; guards clean
 
@@ -230,7 +228,7 @@ Legacy `fare_amount` on `rides` may still appear for display compatibility when 
 A **routing abstraction** exists (`backend/services/routing_service.py`):
 
 - **OSRM self-hosted** code path exists and is **unit-tested** (mocked HTTP).
-- **Runtime OSRM proof** is still **NO_GO** per `docs/SELF_HOSTED_ROUTING_PROOF_V0_2_STATUS.md` until staging VPS proof shows `route_provider=osrm_self_hosted` with `used_fallback=false` (`infra/staging/scripts/prepare-osrm-oregon.sh`).
+- **Runtime OSRM proof** is **GO** on this host per `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md`: `scripts/prove_osrm_runtime.py` exited 0 with `route_provider=osrm_self_hosted` and `used_fallback=false` across three Portland routes.
 - When OSRM is unavailable and `ROUTING_FALLBACK_ENABLED` is true, the honest provider is **`haversine_fallback`** — not road-network route truth.
 - Optional experimental **traffic signal** buffering is not commercial paid-traffic APIs.
 
@@ -242,7 +240,7 @@ A **`route_snapshots`** table exists (foundation — migration `0010`). Driver U
 
 - **No payout-to-bank product claims in driver UI** — Phase 4 shows execution reconciliation only (`available_cents` is derived, not “paid”). Full payout/deposit language waits for Phase 5 provider payout proof.
 - **Payments execution is flag-gated** — charge intents, Stripe webhooks, refunds/disputes, and `/drivers/me/payment-*` visibility exist when `PAYMENTS_ENABLED`; not a marketed wallet or instant-pay product.
-- **No production OSRM routing** — unless `SELF_HOSTED_ROUTING_PROOF_V0_2_STATUS` runtime verdict is **GO**.
+- **No routing SLA / public launch claim** — OSRM runtime proof is GO on this host, but public launch still requires operational hosting, monitoring, and owner acceptance.
 - **No live ETA product** — do not market turn-by-turn ETA as shipped truth.
 - **No commercial traffic APIs** — experimental regional traffic signals only; not Google/Mapbox traffic.
 - **No production-grade requester product** — Phase 1–3 `rider-app` covers request, status, fare estimate, receipt on complete, and history; no merchant/order payload or real payment method UX yet.
@@ -407,7 +405,7 @@ Review rule: any PR touching mock, simulation, or guard-bypass behavior must pro
 | **Token revocation / refresh** | **GO** — refresh rotation + `logout-all`; `tests/test_auth_refresh_rotation.py` |
 | **CORS hardening** | **PARTIAL** — wildcard forbidden; production requires explicit `CORS_ORIGINS`; localhost union only in dev/test |
 | **Payments / PSP** | **PARTIAL** — execution + driver reconciliation visibility (Phases 1–4); payout/deposit claims **NO_GO** until Phase 5 |
-| **OSRM runtime proof** | **NO_GO** unless `SELF_HOSTED_ROUTING_PROOF_V0_2_STATUS` runtime verdict is **GO** |
+| **OSRM runtime proof** | **GO** on this host; keep fallback honesty when OSRM is down |
 
 ---
 

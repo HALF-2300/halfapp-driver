@@ -287,13 +287,20 @@ export default function MarketplaceBottomSheet(props) {
       state === DRIVER_STATES.IN_PROGRESS) &&
     ride
   ) {
+    const stepIndex =
+      state === DRIVER_STATES.ACCEPTED_TO_PICKUP ? 0
+      : state === DRIVER_STATES.ARRIVED_PICKUP ? 1
+      : 2
+    const STEPS = ['To pickup', 'Arrived', 'In trip']
     const headline =
       state === DRIVER_STATES.ACCEPTED_TO_PICKUP
-        ? 'Ride accepted'
+        ? 'Heading to pickup'
         : state === DRIVER_STATES.ARRIVED_PICKUP
-          ? 'Arriving to pickup'
-          : 'In trip'
-    const subhead = state === DRIVER_STATES.IN_PROGRESS ? ride.dropoff.label : ride.pickup.label
+          ? 'At pickup'
+          : 'Trip in progress'
+    const headlineTone =
+      state === DRIVER_STATES.IN_PROGRESS ? '#34d399' : '#60a5fa'
+    const destination = state === DRIVER_STATES.IN_PROGRESS ? ride.dropoff.label : ride.pickup.label
     const buttonTone = state === DRIVER_STATES.IN_PROGRESS ? 'success' : 'primary'
     const backendCockpitState = cockpitBackendState(state)
     content = (
@@ -303,20 +310,76 @@ export default function MarketplaceBottomSheet(props) {
         data-cockpit-state={backendCockpitState}
         data-ride-id={String(ride.rideId)}
       >
+        {/* Trip progress indicator */}
+        <div className="flex items-center gap-0">
+          {STEPS.map((step, i) => {
+            const isDone = i < stepIndex
+            const isActive = i === stepIndex
+            return (
+              <React.Fragment key={step}>
+                <div className="flex flex-col items-center" style={{ flex: 1 }}>
+                  <div
+                    className="w-2 h-2 rounded-full border-2"
+                    style={
+                      isDone
+                        ? { background: '#34d399', borderColor: '#34d399' }
+                        : isActive
+                          ? { background: headlineTone, borderColor: headlineTone, boxShadow: `0 0 0 4px ${headlineTone}30` }
+                          : { background: 'transparent', borderColor: 'rgba(255,255,255,0.2)' }
+                    }
+                  />
+                  <span
+                    className="text-[9px] mt-1 font-semibold uppercase tracking-wide"
+                    style={{ color: isActive ? 'var(--ha-text)' : isDone ? 'var(--ha-muted)' : 'rgba(255,255,255,0.25)' }}
+                  >
+                    {step}
+                  </span>
+                </div>
+                {i < STEPS.length - 1 ? (
+                  <div
+                    className="flex-1 h-px mb-4"
+                    style={{ background: isDone ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.1)' }}
+                  />
+                ) : null}
+              </React.Fragment>
+            )
+          })}
+        </div>
+
+        {/* Rider + fare */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wide text-cyan-300">{headline}</p>
-            <p className="truncate text-[18px] font-semibold">{ride.riderName}</p>
-            <p className="truncate text-[13px] text-[var(--ha-muted)]">→ {subhead}</p>
+            <p
+              className="text-[11px] font-semibold uppercase tracking-[0.1em]"
+              style={{ color: headlineTone }}
+            >
+              {headline}
+            </p>
+            <p className="truncate text-[18px] font-semibold mt-0.5">{ride.riderName}</p>
+            <p className="truncate text-[12px] mt-0.5" style={{ color: 'var(--ha-muted)' }}>
+              → {destination}
+            </p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-[10px] uppercase tracking-wide text-[var(--ha-muted)]">Recorded obligation</p>
-            <p className="text-[20px] font-bold" data-testid="ride-active-payout">
+            <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: 'var(--ha-muted)' }}>
+              Obligation
+            </p>
+            <p className="text-[22px] font-bold tabular-nums mt-0.5" data-testid="ride-active-payout">
               {ride.fareAmount == null ? 'Pending' : formatCurrency(ride.fareAmount)}
             </p>
-            <p className="text-[10px] text-[var(--ha-muted)]">Payout not executed</p>
+            <p className="text-[9px]" style={{ color: 'var(--ha-muted)' }}>Settlement record</p>
           </div>
         </div>
+        {nextAction && (
+          <PrimaryRideActionButton
+            onClick={advanceState}
+            tone={buttonTone}
+            disabled={loadingBackend}
+            testId={`advance-${state.toLowerCase()}`}
+          >
+            {nextAction.label}
+          </PrimaryRideActionButton>
+        )}
         <ExternalNavigationButtons pickup={ride.pickup} dropoff={ride.dropoff} />
         <RideNavigationPanel
           rideId={ride.rideId}
@@ -334,16 +397,6 @@ export default function MarketplaceBottomSheet(props) {
             Release job to pool
           </PrimaryRideActionButton>
         ) : null}
-        {nextAction && (
-          <PrimaryRideActionButton
-            onClick={advanceState}
-            tone={buttonTone}
-            disabled={loadingBackend}
-            testId={`advance-${state.toLowerCase()}`}
-          >
-            {nextAction.label}
-          </PrimaryRideActionButton>
-        )}
         <TripTruthDetails
           ride={ride.raw ?? ride}
           pricing={ride.pricing}

@@ -63,7 +63,7 @@ export default function BottomNavigation({ embedded = false }) {
     {
       id: 'account',
       label: 'Account',
-      path: '/driver/settings',
+      path: '/driver/profile',
       icon: (
         <svg width="18" height="20" viewBox="0 0 18 20" fill="none" className="h-5 w-4">
           <path
@@ -78,6 +78,9 @@ export default function BottomNavigation({ embedded = false }) {
   const isActiveTab = (path) => {
     if (path === '/driver') {
       return location.pathname === '/driver' || location.pathname === '/driver/cockpit' || location.pathname === '/'
+    }
+    if (path === '/driver/profile') {
+      return location.pathname === '/driver/profile' || location.pathname === '/driver/settings'
     }
     return location.pathname.startsWith(path)
   }

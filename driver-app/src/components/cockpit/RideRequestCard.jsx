@@ -12,21 +12,6 @@ import { useDriverPreferences } from '../../context/DriverPreferencesContext.jsx
 import ExternalNavigationButtons from './ExternalNavigationButtons.jsx'
 import PrimaryRideActionButton from './PrimaryRideActionButton.jsx'
 
-function MetaRow({ label, value }) {
-  return (
-    <div className="flex justify-between gap-3 text-[13px]">
-      <span className="text-[var(--ha-muted)]">{label}</span>
-      <span className="text-right font-medium text-[var(--ha-text)]">{value}</span>
-    </div>
-  )
-}
-
-function areaFromLabel(label) {
-  const text = String(label || '').trim()
-  if (!text) return 'Area not provided'
-  return text.split(',')[0].trim() || text
-}
-
 function secondsRemaining(expiresAtIso, timeoutSeconds) {
   if (!expiresAtIso) return timeoutSeconds ?? 30
   const end = new Date(expiresAtIso).getTime()
@@ -70,11 +55,18 @@ export default function RideRequestCard({
   const pickupLabel = ride?.pickup?.label || ride?.pickupLocation || 'Pickup'
   const dropoffLabel = ride?.dropoff?.label || ride?.dropoffLocation || 'Dropoff'
   const expired = remaining === 0
-  const countdownClass =
-    remaining <= 8 ? 'ride-request-card__countdown ride-request-card__countdown--urgent' : 'ride-request-card__countdown'
+  const urgent = remaining <= 8
+
+  const countdownClass = urgent
+    ? 'ride-request-card__countdown ride-request-card__countdown--urgent'
+    : 'ride-request-card__countdown'
+
+  const countdownPct = Math.max(0, Math.round((remaining / timeoutSeconds) * 100))
 
   return (
     <div className="ride-request-card" data-testid="ride-request-card">
+
+      {/* Row 1: eyebrow + countdown */}
       <div className="ride-request-card__header">
         <p className="ride-request-card__eyebrow">{BETA_INCOMING_RIDE_EYEBROW}</p>
         <div
@@ -86,57 +78,107 @@ export default function RideRequestCard({
         </div>
       </div>
 
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-wide text-[#AAB6C8]">Pickup</p>
-          <p className="text-[18px] font-semibold leading-snug text-[#F8FAFC]" data-testid="ride-request-pickup">
-            {pickupLabel}
-          </p>
-          <p className="mt-1 text-[12px] text-[#94A3B8]" data-testid="ride-request-pickup-area">
-            Pickup area: {areaFromLabel(pickupLabel)}
-          </p>
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-[10px] uppercase tracking-wide text-[#AAB6C8]">
+      {/* Row 2: fare + trip meta */}
+      <div className="flex items-end justify-between gap-3 mb-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--ha-muted)' }}>
             {BETA_INCOMING_ESTIMATE_LABEL}
           </p>
-          <p className="text-[22px] font-bold leading-none" data-testid="ride-estimated-payout">
-            {ride?.fareAmount == null ? 'Pending' : formatCurrency(ride.fareAmount)}
+          <p
+            className="text-[30px] font-bold leading-none mt-0.5 tabular-nums"
+            style={{ color: 'var(--ha-text)' }}
+            data-testid="ride-estimated-payout"
+          >
+            {ride?.fareAmount == null ? '—' : formatCurrency(ride.fareAmount)}
           </p>
-          <p className="text-[10px] text-[#64748B]">{BETA_INCOMING_ESTIMATE_HINT}</p>
+          <p className="text-[10px] mt-1" style={{ color: '#64748B' }}>
+            {BETA_INCOMING_ESTIMATE_HINT}
+          </p>
+          <p className="text-[10px] mt-0.5" style={{ color: '#64748B' }}>
+            Manual operations required · recorded only
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <div
+            className="rounded-[14px] border px-3 py-2"
+            style={{ borderColor: 'var(--ha-border)', background: 'rgba(255,255,255,0.04)' }}
+          >
+            <p className="text-[18px] font-bold leading-none tabular-nums" style={{ color: 'var(--ha-text)' }}>
+              {formatDistanceKm(Number(ride?.distance ?? 0), units)}
+            </p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--ha-muted)' }}>
+              {ride?.duration ?? 0} min
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      {/* Timer progress bar */}
+      {!expired && (
+        <div
+          className="mb-3 h-[3px] w-full rounded-full overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.08)' }}
+        >
+          <div
+            className="h-full rounded-full transition-all duration-1000"
+            style={{
+              width: `${countdownPct}%`,
+              background: urgent
+                ? 'linear-gradient(90deg, #fb7185, #f43f5e)'
+                : 'linear-gradient(90deg, #3b82f6, #22d3ee)',
+            }}
+          />
+        </div>
+      )}
+
+      {/* Route visual */}
+      <div className="ride-request-route mb-3">
+        <div className="ride-request-route__stop">
+          <div className="ride-request-route__dot ride-request-route__dot--pickup" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: 'var(--ha-muted)' }}>Pickup</p>
+            <p
+              className="text-[15px] font-semibold leading-snug"
+              style={{ color: 'var(--ha-text)' }}
+              data-testid="ride-request-pickup"
+            >
+              {pickupLabel}
+            </p>
+          </div>
+        </div>
+        <div className="ride-request-route__line" />
+        <div className="ride-request-route__stop">
+          <div className="ride-request-route__dot ride-request-route__dot--dropoff" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: 'var(--ha-muted)' }}>Dropoff</p>
+            <p
+              className="text-[15px] font-medium leading-snug"
+              style={{ color: 'var(--ha-text)' }}
+              data-testid="ride-request-dropoff"
+            >
+              {dropoffLabel}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Test label + open board note */}
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <TestRideLabel lifecycleReason={ride?.raw?.lifecycle_reason} testId="ride-request-test-label" />
       </div>
-
-      <p className="mt-2 text-[10px] text-[#64748B]" data-testid="ride-request-open-board-note">
+      <p
+        className="text-[10px] mb-2"
+        style={{ color: '#64748B' }}
+        data-testid="ride-request-open-board-note"
+      >
         {BETA_OPEN_BOARD_DISPATCH}
       </p>
-
-      <p className="mt-2 text-[11px] uppercase tracking-wide text-[#AAB6C8]">Dropoff</p>
-      <p className="text-[15px] font-medium text-[#F8FAFC]" data-testid="ride-request-dropoff">
-        {dropoffLabel}
-      </p>
-      <p className="mt-1 text-[12px] text-[#94A3B8]" data-testid="ride-request-dropoff-area">
-        Dropoff area: {areaFromLabel(dropoffLabel)}
+      <p className="text-[10px] mb-3" style={{ color: '#64748B' }}>
+        Payment status: Manual operations required
       </p>
 
-      <div className="mt-3 rounded-[18px] border border-white/10 bg-white/[0.04] p-3 space-y-2">
-        <MetaRow
-          label="Estimated distance"
-          value={formatDistanceKm(Number(ride?.distance ?? 0), units)}
-        />
-        <MetaRow label="Estimated time" value={`${ride?.duration ?? 0} min`} />
-        <MetaRow label="Payment status" value="Manual operations required" />
-      </div>
-
-      <div className="mt-3">
-        <ExternalNavigationButtons pickup={ride?.pickup} dropoff={ride?.dropoff} />
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      {/* Accept / Decline */}
+      <div className="grid grid-cols-2 gap-3">
         <PrimaryRideActionButton
           onClick={() => onDecline?.({ reason: 'driver_declined' })}
           disabled={loadingBackend || claimConflict || expired}
@@ -153,6 +195,15 @@ export default function RideRequestCard({
         >
           {expired ? 'Offer expired' : 'Accept'}
         </PrimaryRideActionButton>
+      </div>
+
+      <p className="mt-2 text-center text-[11px]" style={{ color: '#94a3b8' }}>
+        Accept claims the job if it is still available. Decline keeps you online.
+      </p>
+
+      {/* Navigation stays available, but the claim decision remains first. */}
+      <div className="mt-3">
+        <ExternalNavigationButtons pickup={ride?.pickup} dropoff={ride?.dropoff} compact />
       </div>
 
       {expired && (

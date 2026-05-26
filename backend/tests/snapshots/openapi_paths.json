@@ -3,6 +3,7 @@
   "/admin/crl/overview",
   "/admin/drivers",
   "/admin/drivers/{driver_id}/approval",
+  "/admin/drivers/{driver_id}/readiness",
   "/admin/rides",
   "/admin/rides/{ride_id}",
   "/admin/rides/{ride_id}/assign",

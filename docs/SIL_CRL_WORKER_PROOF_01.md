@@ -27,7 +27,7 @@ Measured informally in local SQLite tests: map handler drops from full recompute
 
 ```bash
 cd backend && pytest tests/test_sil_crl_worker.py tests/test_sil_v01.py tests/test_crl_v01.py -q
-cd backend && alembic current   # expect 0035_telemetry_retention_index after full upgrade
+cd backend && alembic current   # expect 0036_driver_readiness_fields after full upgrade
 ```
 
 ## Tests

@@ -201,7 +201,7 @@ Focus:
    cd backend
    py -3.11 -m pytest tests/test_alembic_postgres_upgrade_head.py -q
    ```
-3. Test asserts Alembic version equals `0035_telemetry_retention_index`.
+3. Test asserts Alembic version equals current head (`0036_driver_readiness_fields` as of 2026-05-25).
 **Governance guardrails:**
 - Do not rely on `create_all` for correctness.
 - Fix schema drift via Alembic/migrations if needed.

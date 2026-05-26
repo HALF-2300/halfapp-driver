@@ -26,7 +26,7 @@ test('driver MVP demo loop end-to-end', async ({ page }) => {
   await page.getByTestId('dev-demo-ride-btn').click()
   await expect(page.getByTestId('sheet-request-incoming')).toBeVisible()
   await expect(page.getByTestId('driver-state-badge')).toHaveText(/Incoming/i)
-  await expect(page.getByTestId('decline-ride-btn')).toHaveText(/Hide for this driver/i)
+  await expect(page.getByTestId('decline-ride-btn')).toHaveText(/Decline/i)
 
   await page.getByTestId('accept-ride-btn').click()
   await expect(page.getByTestId('driver-state-badge')).toHaveText(/To pickup/i)
@@ -43,7 +43,7 @@ test('driver MVP demo loop end-to-end', async ({ page }) => {
 
   // Trip should appear in Trips list.
   await page.getByTestId('tab-trips').click()
-  await expect(page.getByText('Completed deliveries')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Completed deliveries' })).toBeVisible()
   await expect(page.getByText('Simulation Rider')).toBeVisible()
 
   // Earnings should reflect the trip.

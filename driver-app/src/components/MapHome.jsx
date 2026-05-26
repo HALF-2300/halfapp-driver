@@ -1086,35 +1086,45 @@ export default function MapHome() {
         ) : null}
         {!driverApproved ? (
           <div
-            className="mx-3 mt-2 rounded-xl border border-amber-500/50 bg-amber-950/80 px-3 py-2 text-xs text-amber-100"
+            className="mx-3 mt-2 rounded-xl border border-amber-500/40 px-3 py-2.5 text-xs"
+            style={{ background: 'rgba(120,53,15,0.55)', color: '#fcd34d', borderColor: 'rgba(245,158,11,0.4)' }}
             data-testid="cockpit-approval-gate"
           >
-            Account not approved — you cannot go online. Check Profile for status.
+            <span className="font-semibold">Account not approved</span>
+            {' — '}you cannot go online. Check Account for status.
           </div>
         ) : null}
         {presenceStale && isOnline ? (
           <div
-            className="mx-3 mt-2 rounded-xl border border-orange-500/40 bg-orange-950/70 px-3 py-2 text-xs text-orange-100"
+            className="mx-3 mt-2 rounded-xl border px-3 py-2.5 text-xs flex items-start gap-2"
+            style={{ background: 'rgba(124,45,18,0.55)', color: '#fdba74', borderColor: 'rgba(249,115,22,0.4)' }}
             data-testid="cockpit-presence-stale"
           >
-            You may appear offline to dispatch — last heartbeat was over 45s ago.
-            {meStatusSnapshot?.last_seen_at
-              ? ` Last seen: ${new Date(meStatusSnapshot.last_seen_at).toLocaleTimeString()}.`
-              : ''}
+            <span className="text-base leading-none mt-0.5">⚠</span>
+            <span>
+              <span className="font-semibold">Presence stale</span>
+              {' — '}dispatch may not see you as online.
+              {meStatusSnapshot?.last_seen_at
+                ? ` Last heartbeat: ${new Date(meStatusSnapshot.last_seen_at).toLocaleTimeString()}.`
+                : ''}
+            </span>
           </div>
         ) : null}
         {resumeNotice && activeRide && (
           <div
-            className="mx-3 mt-2 rounded-xl border border-sky-500/40 bg-sky-950/80 px-3 py-2 text-xs text-sky-100"
+            className="mx-3 mt-2 rounded-xl border px-3 py-2.5 text-xs"
+            style={{ background: 'rgba(12,74,110,0.6)', color: '#7dd3fc', borderColor: 'rgba(56,189,248,0.35)' }}
             data-testid="cockpit-resume-notice"
           >
             <div className="flex items-start justify-between gap-2">
               <span>
-                Resumed active ride #{resumeNotice.rideId} ({resumeNotice.status})
+                <span className="font-semibold">Ride restored</span>
+                {' '}#{resumeNotice.rideId} · {resumeNotice.status}
               </span>
               <button
                 type="button"
-                className="shrink-0 text-sky-300 underline"
+                className="shrink-0 font-medium underline"
+                style={{ color: '#38bdf8' }}
                 onClick={() => setResumeNotice(null)}
               >
                 Dismiss

@@ -9,16 +9,16 @@
 
 - Python 3.11, Node 18+
 - Ports free: **8000** (API), **3022** (driver), **3023** (rider), **3024** (ops)
-- Optional: Docker OSRM on **5000** (routing falls back to haversine if down)
+- OSRM on **5000** is proven on this host; routing still falls back honestly if down
 
-**Route grounding runtime proof** (when OSRM is up): see `docs/SELF_HOSTED_ROUTING_PROOF_V0_2_STATUS.md`. One command:
+**Route grounding runtime proof:** see `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md`. One command:
 
 ```powershell
-cd docker/osrm-portland; docker compose up -d
-powershell -ExecutionPolicy Bypass -File scripts\proof-ride-ai-route-grounding-runtime.ps1
+cd c:\Users\him\Desktop\halfapp-driver
+py -3.11 scripts\prove_osrm_runtime.py
 ```
 
-**Ride AI dispatch tiers:** **GO_DEMO_SAFE** (Playwright 2/2). Production routing: **PARTIAL_GO_PRODUCTION_ROUTE_CODE_COMPLETE_RUNTIME_PROOF_PENDING** — `docs/RIDE_AI_DISPATCH_PRODUCTION_PROOF_GATES_01_REPORT.md` §7. **Production GO not claimed.**
+**Ride AI dispatch tiers:** **GO_DEMO_SAFE** (Playwright 2/2). Production AI dispatch GO is not claimed.
 
 ---
 
@@ -48,8 +48,10 @@ Open: `http://127.0.0.1:3022`
 
 1. Register a **driver** (license required).
 2. If approval is pending in your DB, approve via admin API or test helper — approved drivers only see/accept rides.
-3. Go **online** on the map cockpit.
-4. With **Phase 2** (`HALFAPP_AUTO_ASSIGN=1` in backend `.env`), a rider request should auto-assign — cyan “Ride auto-assigned” banner; skip Accept.
+3. Open **Settings → Vehicle & documents** and fill make, model, plate, and insurance policy.
+4. Return to cockpit. If blocked, the readiness card shows the exact reason and action.
+5. Go **online** on the map cockpit.
+6. With **Phase 2** (`HALFAPP_AUTO_ASSIGN=1` in backend `.env`), a rider request should auto-assign — cyan “Ride auto-assigned” banner; skip Accept.
 
 ---
 
@@ -77,7 +79,7 @@ Open: `http://127.0.0.1:3023`
 
 On rider app, confirm status moves: looking for driver → assigned → on the way → **Trip complete**.
 
-**Phase 3:** Rider should show estimated fare before request and receipt on complete. Driver **Earnings** shows captured ride payments.
+**Phase 3:** Rider should show estimated fare before request and receipt on complete. Driver completion receipt and Earnings must use recorded-obligation language. Do not treat this as paid out.
 
 ---
 
@@ -114,7 +116,7 @@ py -3.11 -m pytest tests/test_ride_flow_ui_proof.py tests/test_rider_auth.py tes
 py -3.11 scripts/owner_runbook_verify.py
 ```
 
-Expect `RUNBOOK API PASS` then do §2–4 once in the browser for human sign-off.
+Expect `RUNBOOK API PASS` then do §2–4 once in the browser for human sign-off. The script seeds vehicle and insurance readiness fields for its generated driver, but browser sign-off should still verify the readiness card and Settings path once.
 
 ---
 

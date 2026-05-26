@@ -1,8 +1,10 @@
 export const READINESS_BLOCKERS = Object.freeze({
   PROFILE_INCOMPLETE: 'profile_incomplete',
   VEHICLE_MISSING: 'vehicle_missing',
+  VEHICLE_NOT_READY: 'vehicle_not_ready',
   LICENSE_DOCS_MISSING: 'license_docs_missing',
   INSURANCE_MISSING: 'insurance_missing',
+  INSURANCE_EXPIRY_MISSING: 'insurance_expiry_missing',
   INSURANCE_EXPIRED: 'insurance_expired',
   BACKEND_UNAVAILABLE: 'backend_unavailable',
   APPROVAL_REQUIRED: 'approval_required',
@@ -59,6 +61,14 @@ export function buildDriverReadiness({
     blockers.push(
       blocker(READINESS_BLOCKERS.VEHICLE_MISSING, 'Vehicle info missing')
     )
+  } else if (accountProfile?.vehicle_ready !== true) {
+    blockers.push(
+      blocker(
+        READINESS_BLOCKERS.VEHICLE_NOT_READY,
+        'Vehicle pending operations review',
+        'Contact operations'
+      )
+    )
   }
 
   if (!present(accountProfile?.license_no)) {
@@ -70,6 +80,14 @@ export function buildDriverReadiness({
   if (!present(accountProfile?.insurance_policy)) {
     blockers.push(
       blocker(READINESS_BLOCKERS.INSURANCE_MISSING, 'Insurance missing')
+    )
+  } else if (!present(accountProfile?.insurance_expires_at)) {
+    blockers.push(
+      blocker(
+        READINESS_BLOCKERS.INSURANCE_EXPIRY_MISSING,
+        'Insurance expiry missing',
+        'Contact operations'
+      )
     )
   } else if (isExpired(accountProfile?.insurance_expires_at, now)) {
     blockers.push(

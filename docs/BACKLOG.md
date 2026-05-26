@@ -61,8 +61,8 @@ See **`docs/HALFAPP_DRIVER_PRODUCT_COMPLETION_ROADMAP_01.md`** for ordered slice
 | Item | Why | Proof target |
 |------|-----|--------------|
 | **Internal owner test mode + runbook** | Owner-car validation without beta ops | `INTERNAL_OWNER_TEST_MODE_01` in product completion roadmap |
-| **OSRM runtime proof** (Docker/VPS) | Code path GO; runtime **NO_GO** | `docs/SELF_HOSTED_ROUTING_PROOF_V0_1_STATUS.md`, `docs/RUNTIME_PROOF_PROCEDURE.md` |
-| **Postgres claim-race CI** | Manual proof exists; need repeatable CI + PG migrations | `docs/HALFAPP_POSTGRES_CLAIM_RACE_PROOF_01_REPORT.md`; CI matrix on PostgreSQL |
+| ~~OSRM runtime proof~~ | **DONE** — runtime GO on this host; `used_fallback=false` on 3 Portland routes | `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md`, `docs/SELF_HOSTED_ROUTING_PROOF_V0_3_REPORT.md` |
+| ~~Postgres claim-race CI / local proof~~ | **DONE** — fresh PostgreSQL 16 Alembic + claim-race proof passed | `docs/P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md`, `docs/P0_G7_ALEMBIC_POSTGRES_PROOF_01.md` |
 | **Dossier Path A vs B decision** | Dual spine risk (document only) | `docs/HALFAPP_DOSSIER_SPINE_RECONCILIATION_01.md` — keep **PARALLEL_NOT_WIRED** for driver app |
 
 ### P1 (hardening + remaining driver surfaces)
@@ -72,7 +72,7 @@ See **`docs/HALFAPP_DRIVER_PRODUCT_COMPLETION_ROADMAP_01.md`** for ordered slice
 | ~~Profile / settings shell~~ | **DONE** — `docs/PROFILE_SETTINGS_SHELL_01.md`; vehicle/contact/session/preferences all via API; AppShellLayout; no mock data |
 | ~~Notifications product UI~~ | **DONE** — `docs/NOTIFICATIONS_PRODUCT_UI_01.md`; backend-only, DEV-gated demo tab, AppShellLayout; stale heading E2E fixed |
 | ~~Cockpit session resilience~~ | **DONE (code) / TODO (E2E)** — `docs/COCKPIT_SESSION_RESILIENCE_01.md`; backend + frontend shipped; live-stack E2E run is owner-runnable |
-| ~~Driver closed-beta readiness shaping~~ | **DONE** — `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`; DriverReadinessV1, go-online gate, ride offer expired/conflict states, honest completion receipt; `npm test` 158 passed; `npm run build` passed |
+| ~~Driver closed-beta readiness shaping~~ | **DONE** — `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`, `docs/DRIVER_READINESS_OPERATOR_DATA_PASS_01.md`; DriverReadinessV1, go-online gate, ops-owned vehicle readiness + insurance expiry, ride offer expired/conflict states, honest completion receipt; `npm test` 159 passed; `npm run build` passed |
 | ~~Settlement / calculation copy lock~~ | **DONE** — `docs/TRIPS_EARNINGS_POLISH_01.md`; delivery vocabulary aligned across trips/earnings/chart; 150 npm tests pass |
 | ~~Token revocation / refresh design~~ | **DONE** — `docs/TOKEN_SESSION_SAFETY_01.md`; migration 0016, rotation, logout-all; `test_auth_refresh_rotation.py` |
 | ~~CORS hardening + observability~~ | **DONE** — `docs/DEPLOY_CORS_OBSERVABILITY_01.md`; CORS hardened; structured request logging middleware with `driver_id`/`ride_id` correlation |

@@ -94,6 +94,13 @@ export async function listDrivers() {
   return request('/admin/drivers')
 }
 
+export async function updateDriverReadiness(driverId, body) {
+  return request(`/admin/drivers/${driverId}/readiness`, {
+    method: 'PATCH',
+    body,
+  })
+}
+
 export function formatCents(cents) {
   if (cents == null) return '—'
   return `$${(Number(cents) / 100).toFixed(2)}`

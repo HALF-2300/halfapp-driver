@@ -30,6 +30,8 @@ class User(Base):
     vehicle_year = Column(Integer, nullable=True)
     license_plate = Column(String, nullable=True)
     insurance_policy = Column(String, nullable=True)
+    insurance_expires_at = Column(DateTime(timezone=True), nullable=True)
+    vehicle_ready = Column(Boolean, default=False, nullable=False)
     availability = Column(String, default="available", index=True, nullable=False)
     last_latitude = Column(Float, nullable=True)
     last_longitude = Column(Float, nullable=True)
