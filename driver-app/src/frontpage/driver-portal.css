@@ -19,8 +19,8 @@
   font-family: var(--dp-font);
   color: var(--dp-text);
   background:
-    radial-gradient(circle at 12% 8%, rgba(59, 130, 246, 0.16), transparent 36%),
-    radial-gradient(circle at 88% 20%, rgba(52, 211, 153, 0.08), transparent 32%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.88) 0%, rgba(5, 8, 20, 0.98) 46%, #050814 100%),
+    linear-gradient(135deg, rgba(59, 130, 246, 0.12), transparent 42%),
     var(--dp-bg);
 }
 
@@ -162,7 +162,7 @@
   z-index: 1;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 24px 20px 48px;
+  padding: 18px 20px 48px;
 }
 
 .dp-eyebrow {
@@ -170,7 +170,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #7ba3ff;
+  color: #67e8f9;
   margin: 0 0 10px;
 }
 
@@ -190,7 +190,7 @@
 
 .dp-hero h1 {
   margin: 0 0 14px;
-  font-size: clamp(1.65rem, 3.8vw, 2.35rem);
+  font-size: clamp(1.7rem, 3.4vw, 2.45rem);
   line-height: 1.15;
   letter-spacing: -0.02em;
 }
@@ -223,13 +223,13 @@
 }
 
 .dp-btn--primary {
-  background: var(--dp-accent);
+  background: linear-gradient(135deg, #2563eb, #0891b2);
   color: #fff;
   padding: 10px 18px;
 }
 
 .dp-btn--primary:hover {
-  background: var(--dp-accent-strong);
+  background: linear-gradient(135deg, #1d4ed8, #0e7490);
 }
 
 .dp-btn--secondary {
@@ -492,6 +492,23 @@
   line-height: 1.5;
 }
 
+.dp-auth-proof-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.dp-auth-proof-row span {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.72);
+  color: #dbeafe;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 10px;
+}
+
 .dp-auth__dev-note {
   margin-top: 12px;
   font-size: 11px;
@@ -500,11 +517,11 @@
 
 .dp-auth-card {
   padding: 20px;
-  border-radius: var(--dp-radius-lg);
-  border: 1px solid var(--dp-border);
-  background: var(--dp-surface);
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(7, 12, 26, 0.92));
   backdrop-filter: blur(18px);
-  box-shadow: var(--dp-shadow);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
 }
 
 .dp-auth-tabs {
@@ -527,9 +544,9 @@
 }
 
 .dp-auth-tabs button.active {
-  background: rgba(59, 130, 246, 0.18);
+  background: rgba(14, 165, 233, 0.16);
   color: var(--dp-text);
-  border-color: rgba(59, 130, 246, 0.35);
+  border-color: rgba(125, 211, 252, 0.32);
 }
 
 .dp-form {
@@ -549,8 +566,8 @@
 .dp-field input {
   padding: 11px 12px;
   border-radius: 12px;
-  border: 1px solid var(--dp-border);
-  background: rgba(2, 6, 18, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(2, 6, 18, 0.78);
   color: var(--dp-text);
   font-size: 14px;
 }
@@ -584,6 +601,12 @@
 .dp-auth-alert--error {
   background: rgba(239, 68, 68, 0.12);
   color: #fca5a5;
+}
+
+.dp-auth-alert--info {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(125, 211, 252, 0.25);
+  color: #bae6fd;
 }
 
 .dp-footer {

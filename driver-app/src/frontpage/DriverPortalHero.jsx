@@ -7,11 +7,11 @@ export default function DriverPortalHero({ onEnterPortal, onCreateAccount }) {
       <div className="dp-hero__copy">
         <p className="dp-eyebrow">HalfApp Driver Portal</p>
         <h1>
-          A modern driver platform built around your map, your availability, and your workday.
+          Driver operations, readiness, and job execution in one focused cockpit.
         </h1>
         <p className="dp-hero__subtitle">
-          Go online, see your area, manage ride opportunities, and work from a map-first cockpit designed
-          for clarity and trust.
+          A closed-beta driver surface for going online, reviewing jobs, completing trips, and recording
+          operational truth without public-launch or payout claims.
         </p>
         <div className="dp-hero__actions">
           <button

@@ -16,9 +16,9 @@
   --text-xl: 22px;
   /* HalfApp cockpit design tokens */
   --ha-bg: #050814;
-  --ha-surface: rgba(7, 12, 26, 0.76);
-  --ha-surface-strong: rgba(10, 16, 34, 0.9);
-  --ha-border: rgba(255, 255, 255, 0.12);
+  --ha-surface: rgba(9, 14, 29, 0.82);
+  --ha-surface-strong: rgba(11, 18, 36, 0.94);
+  --ha-border: rgba(148, 163, 184, 0.16);
   --ha-text: #f8fafc;
   --ha-muted: #aab6c8;
   --ha-accent: #22d3ee;
@@ -28,7 +28,7 @@
   --ha-danger: #ef4444;
   --ha-radius-xl: 28px;
   --ha-radius-lg: 22px;
-  --ha-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+  --ha-shadow: 0 26px 78px rgba(0, 0, 0, 0.42);
   --halfapp-bg: var(--ha-bg);
   --halfapp-surface: var(--ha-surface);
   --halfapp-border: var(--ha-border);
@@ -386,7 +386,8 @@ h1, h2, h3, h4, h5, h6 {
     align-items: stretch;
     justify-content: center;
     padding: 12px;
-    background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(30, 58, 95, 0.25), transparent),
+    background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(5, 8, 20, 1)),
       var(--halfapp-bg);
   }
 
@@ -423,10 +424,10 @@ h1, h2, h3, h4, h5, h6 {
   gap: 6px;
   padding: 8px 10px;
   border-radius: var(--ha-radius-lg);
-  background: var(--ha-surface);
-  backdrop-filter: blur(18px);
-  border: 1px solid var(--halfapp-border);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(7, 12, 26, 0.88));
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.32);
 }
 
 .driver-status-bar__brand {
@@ -492,11 +493,11 @@ h1, h2, h3, h4, h5, h6 {
   pointer-events: auto;
   width: 100%;
   max-width: 420px;
-  border-radius: 24px 24px 20px 20px;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(7, 12, 26, 0.98));
+  border-radius: 22px 22px 18px 18px;
+  background: linear-gradient(180deg, rgba(13, 20, 38, 0.985), rgba(5, 10, 24, 0.99));
   backdrop-filter: blur(22px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 26px 68px rgba(0, 0, 0, 0.48);
   padding: 14px 16px 16px;
   animation: cockpit-sheet-in 0.28s ease-out;
 }
@@ -519,18 +520,18 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #fcd34d;
+  color: #67e8f9;
 }
 
 .ride-request-card__countdown {
   border-radius: 999px;
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  background: rgba(14, 165, 233, 0.12);
   padding: 6px 14px;
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #fde68a;
+  color: #bae6fd;
 }
 
 .ride-request-card__countdown--urgent {

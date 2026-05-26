@@ -89,6 +89,28 @@ test.describe('Driver Portal public face', () => {
     await expect(page.getByTestId('map-home')).toHaveCount(0)
   })
 
+  test('invalid session returns to sign in with clear notice', async ({ page }) => {
+    await page.route('**/auth/me', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Invalid token' }),
+      })
+    })
+    await page.goto('/#/')
+    await page.evaluate(() => {
+      try {
+        localStorage.setItem('driver_token', 'expired-real-token')
+        localStorage.setItem('driver_role', 'driver')
+      } catch {
+        /* ignore */
+      }
+    })
+    await page.goto('/#/driver')
+    await expect(page.getByTestId('driver-portal-frontpage')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('auth-error-message')).toContainText(/Session expired or invalid/i)
+  })
+
   test('logout returns to public landing', async ({ page }) => {
     await page.goto('/#/')
     await page.evaluate(() => {
@@ -107,6 +129,7 @@ test.describe('Driver Portal public face', () => {
     await page.getByTestId('logout-btn').click()
     await expect(page).toHaveURL(/\/(#\/|#)$/, { timeout: 15_000 })
     await expect(page.getByTestId('driver-portal-frontpage')).toBeVisible()
+    await expect(page.getByTestId('auth-session-notice')).toContainText(/Signed out/i)
   })
 
   test('dev banner does not dominate hero', async ({ page }) => {

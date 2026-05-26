@@ -896,7 +896,10 @@ export default function MapHome() {
 
   const handleLogout = useCallback(() => {
     logout()
-    navigate('/', { replace: true })
+    navigate('/', {
+      replace: true,
+      state: { authNotice: 'Signed out. Driver session ended safely.' },
+    })
   }, [logout, navigate])
 
   const stateMeta = STATE_LABELS[status.state] ?? STATE_LABELS[DRIVER_STATES.OFFLINE]

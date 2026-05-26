@@ -28,6 +28,7 @@ export function AuthProvider({ children }) {
           } else {
             driverAPI.logout()
             setUser(null)
+            setError('This session is not for a driver account. Sign in with a driver profile.')
           }
         }
       } catch (err) {
@@ -35,6 +36,7 @@ export function AuthProvider({ children }) {
         console.error('Auth check failed:', err)
         driverAPI.logout()
         setUser(null)
+        setError('Session expired or invalid. Sign in again to continue.')
       }
     }
 

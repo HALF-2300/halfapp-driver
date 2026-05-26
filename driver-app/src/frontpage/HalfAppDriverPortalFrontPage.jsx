@@ -33,6 +33,7 @@ export default function HalfAppDriverPortalFrontPage() {
   const [errors, setErrors] = useState({})
   const [showSuccess, setShowSuccess] = useState(false)
   const { login, register, isLoading, error, clearError, isAuthenticated } = useAuth()
+  const sessionNotice = location.state?.authNotice || ''
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -186,6 +187,7 @@ export default function HalfAppDriverPortalFrontPage() {
           formData={formData}
           errors={errors}
           error={error}
+          sessionNotice={sessionNotice}
           showSuccess={showSuccess}
           isLoading={isLoading || authBusy}
           onInputChange={handleInputChange}

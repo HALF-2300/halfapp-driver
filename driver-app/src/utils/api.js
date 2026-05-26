@@ -975,6 +975,10 @@ class DriverAPI {
       if (!ALLOW_OFFLINE_MOCK) {
         throw error
       }
+      const token = localStorage.getItem('driver_token')
+      if (error?.status === 401 || (token && !token.startsWith('mock_'))) {
+        throw error
+      }
       return this.getMockResponse('/auth/me')
     }
   }
