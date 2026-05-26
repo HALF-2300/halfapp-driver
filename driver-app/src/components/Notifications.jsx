@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import driverAPI from '../utils/api.js'
 import AppShellLayout from './AppShellLayout.jsx'
 import { useDriverPreferences } from '../context/DriverPreferencesContext.jsx'
@@ -9,22 +9,10 @@ import {
   normalizeNotification,
 } from '../utils/notificationDisplay.js'
 
-const SHOW_DEMO_MESSAGES_TAB = import.meta.env.DEV
-
-const DEMO_MESSAGES = [
-  {
-    name: 'Sample rider',
-    message: 'Example message — rider chat is not connected to a live backend yet.',
-    time: 'demo',
-    avatar: 'SR',
-    isRead: true,
-  },
-]
+const SHOW_DEMO_MESSAGES_TAB = import.meta.env.DEV && false
 
 export default function Notifications() {
-  const navigate = useNavigate()
   const { refreshUnreadNotifications } = useDriverPreferences()
-  const [activeTab, setActiveTab] = useState('notifications')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [items, setItems] = useState([])
@@ -56,8 +44,8 @@ export default function Notifications() {
   const subtitle = loading
     ? 'Loading…'
     : unreadCount > 0
-      ? `${unreadCount} unread · in-app only (no push)`
-      : 'All caught up · in-app only (no push)'
+      ? `${unreadCount} unread · in-app only`
+      : 'All caught up'
 
   const markRead = async (notification) => {
     const normalized = normalizeNotification(notification)
@@ -87,11 +75,18 @@ export default function Notifications() {
     }
   }
 
-  const headerAction = (
-    <button type="button" className="ha-btn ha-btn--ghost" onClick={() => navigate('/driver')}>
-      Cockpit
+  const markAllRead = async () => {
+    const unread = items.filter((n) => !isNotificationRead(n))
+    if (unread.length === 0) return
+    await Promise.all(unread.map((n) => markRead(n).catch(() => null)))
+    await refreshUnreadNotifications()
+  }
+
+  const headerAction = unreadCount > 0 ? (
+    <button type="button" className="ha-btn ha-btn--ghost" onClick={markAllRead}>
+      Mark all read
     </button>
-  )
+  ) : null
 
   return (
     <AppShellLayout
@@ -100,139 +95,109 @@ export default function Notifications() {
       subtitle={subtitle}
       headerAction={headerAction}
     >
-      {SHOW_DEMO_MESSAGES_TAB ? (
-        <section className="ha-section">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              data-testid="tab-notifications"
-              className={`ha-btn flex-1 ${activeTab === 'notifications' ? 'ha-btn--primary' : 'ha-btn--ghost'}`}
-              onClick={() => setActiveTab('notifications')}
-            >
-              Notifications
-            </button>
-            <button
-              type="button"
-              data-testid="tab-messages"
-              className={`ha-btn flex-1 ${activeTab === 'messages' ? 'ha-btn--primary' : 'ha-btn--ghost'}`}
-              onClick={() => setActiveTab('messages')}
-            >
-              Messages (dev)
-            </button>
+      <section className="ha-section" style={{ paddingTop: '1rem' }} data-testid="notifications-panel">
+        {error ? (
+          <div className="ha-alert ha-alert--error" data-testid="notifications-api-error">
+            {error}
           </div>
-        </section>
-      ) : null}
+        ) : null}
 
-      {activeTab === 'notifications' && (
-        <section className="ha-section" data-testid="notifications-panel">
-          {error ? (
-            <div className="ha-alert ha-alert--error" data-testid="notifications-api-error">
-              {error}
+        {loading ? (
+          <div className="ha-card ha-empty">Loading notifications…</div>
+        ) : null}
+
+        {!loading && !error && items.length === 0 ? (
+          <div className="ha-card ha-empty" data-testid="notifications-empty">
+            <div
+              className="mx-auto mb-3 w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(255,255,255,0.06)' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style={{ color: 'var(--ha-muted)' }}>
+                <path d="M10 2a5 5 0 00-5 5v2.5c0 .7-.3 1.4-.8 1.9L3 13.5h14l-1.2-2.1c-.5-.5-.8-1.2-.8-1.9V7a5 5 0 00-5-5zm0 16a2.5 2.5 0 01-2.45-2h4.9A2.5 2.5 0 0110 18z" fill="currentColor" />
+              </svg>
             </div>
-          ) : null}
+            <p className="font-medium">No notifications</p>
+            <p className="ha-truth-note mt-2">
+              Ride lifecycle updates appear here. Push delivery is not enabled in this build.
+            </p>
+            <Link
+              to="/driver/settings"
+              className="text-sm mt-3 inline-block"
+              style={{ color: 'var(--ha-green)' }}
+            >
+              Notification preferences →
+            </Link>
+          </div>
+        ) : null}
 
-          {loading ? (
-            <div className="ha-card ha-empty">Loading notifications…</div>
-          ) : null}
-
-          {!loading && !error && items.length === 0 ? (
-            <div className="ha-card ha-empty" data-testid="notifications-empty">
-              <p className="font-medium">No notifications</p>
-              <p className="text-sm ha-truth-note mt-2">
-                In-app updates appear here when rides change. Push delivery is not enabled in this
-                build.
-              </p>
-              <Link to="/driver/settings" className="text-sm mt-3 inline-block" style={{ color: 'var(--ha-green)' }}>
-                Notification preferences →
-              </Link>
-            </div>
-          ) : null}
-
-          {!loading && !error && items.length > 0 ? (
-            <ul className="ha-list" data-testid="notifications-api-list">
-              {items.map((row, index) => {
-                const n = normalizeNotification(row, index)
-                const marking = markingIds.has(n.id)
-                return (
-                  <li key={n.id}>
-                    <button
-                      type="button"
-                      className="ha-list-item w-full text-left"
-                      style={
-                        n.isRead
-                          ? { opacity: 0.85 }
-                          : { borderColor: 'rgba(59, 130, 246, 0.45)' }
-                      }
-                      data-testid={`notification-row-${n.id}`}
-                      aria-label={`notification-${n.id}`}
-                      disabled={marking || n.isRead}
-                      onClick={() => markRead(row)}
-                    >
-                      <div className="flex justify-between gap-3 w-full">
-                        <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-sm">{n.title}</div>
-                          {n.message ? (
-                            <p className="text-sm mt-1" style={{ color: 'var(--ha-muted)' }}>
-                              {n.message}
-                            </p>
-                          ) : null}
-                          <p className="ha-truth-note mt-1">
-                            {formatNotificationTime(n.createdAt)}
-                            {n.type ? ` · ${n.type}` : ''}
-                          </p>
+        {!loading && !error && items.length > 0 ? (
+          <ul className="ha-list" data-testid="notifications-api-list">
+            {items.map((row, index) => {
+              const n = normalizeNotification(row, index)
+              const marking = markingIds.has(n.id)
+              const unread = !n.isRead
+              return (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    style={{
+                      background: unread ? 'rgba(59,130,246,0.07)' : 'var(--ha-surface)',
+                      border: `1px solid ${unread ? 'rgba(59,130,246,0.35)' : 'var(--ha-border)'}`,
+                      borderRadius: 'var(--ha-radius-lg)',
+                      padding: '0.85rem 1rem',
+                      backdropFilter: 'blur(18px)',
+                      display: 'block',
+                      width: '100%',
+                    }}
+                    data-testid={`notification-row-${n.id}`}
+                    aria-label={`notification-${n.id}`}
+                    disabled={marking || n.isRead}
+                    onClick={() => markRead(row)}
+                  >
+                    <div className="flex justify-between gap-3 w-full">
+                      <div className="min-w-0 flex-1">
+                        <div
+                          className="text-sm font-semibold leading-snug"
+                          style={{ color: unread ? 'var(--ha-text)' : 'var(--ha-muted)' }}
+                        >
+                          {n.title}
                         </div>
-                        {!n.isRead ? (
+                        {n.message ? (
+                          <p className="text-sm mt-1" style={{ color: 'var(--ha-muted)' }}>
+                            {n.message}
+                          </p>
+                        ) : null}
+                        <p className="ha-truth-note mt-1">
+                          {formatNotificationTime(n.createdAt)}
+                          {n.type ? ` · ${n.type}` : ''}
+                        </p>
+                      </div>
+                      <div className="shrink-0 flex flex-col items-end gap-1 mt-0.5">
+                        {unread ? (
                           <span
-                            className="shrink-0 mt-1 w-2 h-2 rounded-full"
-                            style={{ background: 'var(--ha-green)' }}
+                            className="w-2 h-2 rounded-full"
+                            style={{ background: 'var(--ha-blue)', flexShrink: 0, marginTop: '3px' }}
                             aria-hidden
                           />
                         ) : (
-                          <span className="text-xs ha-truth-note shrink-0">Read</span>
+                          <span className="text-[10px]" style={{ color: 'var(--ha-muted)' }}>Read</span>
                         )}
                       </div>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          ) : null}
-        </section>
-      )}
-
-      {SHOW_DEMO_MESSAGES_TAB && activeTab === 'messages' ? (
-        <section className="ha-section" data-testid="inbox-messages-panel">
-          <div
-            className="ha-alert mb-3"
-            data-testid="inbox-messages-demo"
-            role="status"
-          >
-            Development only — not live rider chat.
-          </div>
-          <ul className="ha-list">
-            {DEMO_MESSAGES.map((message, index) => (
-              <li key={index} className="ha-list-item">
-                <div className="font-semibold text-sm">{message.name}</div>
-                <p className="text-sm mt-1" style={{ color: 'var(--ha-muted)' }}>
-                  {message.message}
-                </p>
-              </li>
-            ))}
+                    </div>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
-        </section>
-      ) : null}
+        ) : null}
 
-      {!SHOW_DEMO_MESSAGES_TAB ? (
-        <section className="ha-section">
-          <p className="text-xs ha-truth-note">
-            Rider messaging is not available. See{' '}
-            <Link to="/driver/profile" style={{ color: 'var(--ha-green)' }}>
-              Profile
-            </Link>{' '}
-            for account details.
+        {!loading && (
+          <p className="ha-truth-note text-center mt-4">
+            In-app notifications only · push delivery not enabled
           </p>
-        </section>
-      ) : null}
+        )}
+      </section>
     </AppShellLayout>
   )
 }

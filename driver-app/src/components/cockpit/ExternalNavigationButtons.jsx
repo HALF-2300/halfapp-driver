@@ -5,14 +5,16 @@ import {
   openExternalNavigation,
 } from '../../utils/externalNavigation.js'
 
-function ExternalNavButton({ children, onClick, testId, disabled }) {
+function ExternalNavButton({ children, onClick, testId, disabled, compact = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       data-testid={testId}
-      className="cockpit-pressable w-full rounded-[18px] border border-white/10 bg-white/[0.06] py-2.5 text-[13px] font-semibold text-[#E2E8F0] transition-colors hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
+      className={`cockpit-pressable w-full rounded-[18px] border border-white/10 bg-white/[0.06] text-[13px] font-semibold text-[#E2E8F0] transition-colors hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50 ${
+        compact ? 'min-h-[40px] px-3 py-2' : 'py-2.5'
+      }`}
     >
       {children}
     </button>
@@ -25,8 +27,9 @@ function ExternalNavButton({ children, onClick, testId, disabled }) {
  * @param {{ lat?: number, lng?: number, label?: string } | null | undefined} props.pickup
  * @param {{ lat?: number, lng?: number, label?: string } | null | undefined} props.dropoff
  * @param {boolean} [props.showDestination=true]
+ * @param {boolean} [props.compact=false]
  */
-export default function ExternalNavigationButtons({ pickup, dropoff, showDestination = true }) {
+export default function ExternalNavigationButtons({ pickup, dropoff, showDestination = true, compact = false }) {
   const pickupReady = hasNavigationTarget(pickup)
   const destinationReady = showDestination && hasNavigationTarget(dropoff)
 
@@ -36,14 +39,18 @@ export default function ExternalNavigationButtons({ pickup, dropoff, showDestina
   const destinationUrl = buildGoogleMapsNavigationUrl(dropoff)
 
   return (
-    <div className="space-y-2" data-testid="external-navigation-actions">
+    <div
+      className={compact ? 'grid grid-cols-2 gap-2' : 'space-y-2'}
+      data-testid="external-navigation-actions"
+    >
       {pickupReady && (
         <ExternalNavButton
           testId="open-pickup-google-maps"
           disabled={!pickupUrl}
           onClick={() => openExternalNavigation(pickupUrl)}
+          compact={compact}
         >
-          Open pickup in Google Maps
+          {compact ? 'Pickup map' : 'Open pickup in Google Maps'}
         </ExternalNavButton>
       )}
       {destinationReady && (
@@ -51,8 +58,9 @@ export default function ExternalNavigationButtons({ pickup, dropoff, showDestina
           testId="open-destination-google-maps"
           disabled={!destinationUrl}
           onClick={() => openExternalNavigation(destinationUrl)}
+          compact={compact}
         >
-          Open destination in Google Maps
+          {compact ? 'Dropoff map' : 'Open destination in Google Maps'}
         </ExternalNavButton>
       )}
     </div>

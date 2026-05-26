@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -40,6 +40,7 @@ class RouteQuoteIn(BaseModel):
 
 @router.get("/map")
 def sil_map(
+    response: Response,
     driver_user: AuthPrincipal = Depends(DRIVER_ACCESS),
     db: Session = Depends(get_db),
     bbox: str | None = None,
@@ -49,23 +50,27 @@ def sil_map(
     min_conf: float = Query(default=0.4, ge=0.0, le=1.0),
 ):
     _ = driver_user
+    _ = h3_res
     window_minutes = 30
     if window.endswith("m"):
         try:
             window_minutes = int(window[:-1])
         except ValueError:
             raise HTTPException(status_code=400, detail="invalid_window") from None
-    return build_sil_map_response(
+    body, source = build_sil_map_response(
         db,
         bbox=bbox,
         window_minutes=window_minutes,
         layers=layers,
         min_conf=min_conf,
     )
+    response.headers["X-SIL-Source"] = source
+    return body
 
 
 @router.get("/suggest")
 def sil_suggest(
+    response: Response,
     driver_user: AuthPrincipal = Depends(DRIVER_ACCESS),
     db: Session = Depends(get_db),
     driver_h3: str | None = None,
@@ -88,7 +93,9 @@ def sil_suggest(
         except ValueError:
             raise HTTPException(status_code=400, detail="invalid_horizon") from None
 
-    return build_sil_suggest_response(db, driver_h3=cell, horizon_minutes=horizon_minutes)
+    body, source = build_sil_suggest_response(db, driver_h3=cell, horizon_minutes=horizon_minutes)
+    response.headers["X-SIL-Source"] = source
+    return body
 
 
 @router.post("/route/quote")

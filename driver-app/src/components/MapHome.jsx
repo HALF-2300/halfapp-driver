@@ -38,11 +38,15 @@ import DevActionDock from './cockpit/DevActionDock.jsx'
 import CockpitNetworkBanner from './CockpitNetworkBanner.jsx'
 import CockpitSkeleton from './cockpit/CockpitSkeleton.jsx'
 import { useActiveRide } from '../hooks/useActiveRide.js'
-import { formatCurrency } from '../theme/halfAppTheme.js'
+import { useAiConnection } from '../hooks/useAiConnection.js'
+import { useRideAiDispatch } from '../hooks/useRideAiDispatch.js'
+import RideAiDispatchPanel from './cockpit/RideAiDispatchPanel.jsx'
 import { driverPayoutDollars } from '../utils/ridePricingDisplay.js'
 import { isBackendClaimConflict } from '../utils/rideTransparency.js'
 import { useDriverPreferences } from '../context/DriverPreferencesContext.jsx'
 import { playOfferSound } from '../utils/sounds.js'
+import { buildDriverReadiness } from '../utils/driverReadiness.js'
+import CompletionReceiptCard from './cockpit/CompletionReceiptCard.jsx'
 
 const STATE_LABELS = {
   [DRIVER_STATES.OFFLINE]: { label: 'Offline', tone: 'bg-slate-700 text-slate-200' },
@@ -119,7 +123,12 @@ function backendRideToCockpitRide(ride) {
     generatedAt: ride.generated_at ?? null,
     status: mapBackendStatusToDriverState(ride.status),
     backendStatus: ride.status,
-    source: ride.lifecycle_reason === 'simulation' ? 'simulation' : 'backend',
+    source:
+      ride.lifecycle_reason === 'simulation'
+        ? 'simulation'
+        : ride.lifecycle_reason === 'auto_assigned'
+          ? 'auto_assigned'
+          : 'backend',
     dispatchExpiresAt: ride.dispatch_expires_at ?? null,
     dispatchTimeoutSeconds: ride.dispatch_timeout_seconds ?? 30,
     raw: ride,
@@ -161,6 +170,23 @@ export default function MapHome() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { preferences } = useDriverPreferences()
+  const authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('driver_token') : null
+  const {
+    canSendToModel,
+    connectToBackend: connectAiBackend,
+  } = useAiConnection({ token: authToken })
+
+  const rideAi = useRideAiDispatch({
+    authToken,
+    canSendToModel,
+    fetchRidePayment: (rideId) => driverAPI.getRidePayment(rideId),
+  })
+
+  useEffect(() => {
+    if (canSendToModel) return
+    connectAiBackend().catch(() => null)
+  }, [canSendToModel, connectAiBackend])
+
   const {
     activeRide: activeRidePayload,
     loading: activeRideLoading,
@@ -182,6 +208,9 @@ export default function MapHome() {
   const [conflictTransparencyUnavailable, setConflictTransparencyUnavailable] = useState(false)
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
   const [driverApproved, setDriverApproved] = useState(true)
+  const [driverReadiness, setDriverReadiness] = useState(() =>
+    buildDriverReadiness({ accountProfile: null, backendUnavailable: true })
+  )
   const [presenceStale, setPresenceStale] = useState(false)
   const [meStatusSnapshot, setMeStatusSnapshot] = useState(null)
   const flashTimer = useRef(null)
@@ -320,8 +349,26 @@ export default function MapHome() {
           eligible.sort((a, b) => Number(b.id) - Number(a.id))[0] ?? null
       }
       const selected = assigned || requested || null
-      const cockpitRide = backendRideToCockpitRide(selected)
+      let cockpitRide = null
+      if (selected) {
+        try {
+          cockpitRide = backendRideToCockpitRide(selected)
+        } catch {
+          cockpitRide = null
+        }
+      }
       if (refreshId !== refreshSeq.current) return
+
+      const currentActive = activeRideRef.current
+      if (
+        !cockpitRide &&
+        currentActive &&
+        ACTIVE_BACKEND_STATUSES.has(currentActive.backendStatus)
+      ) {
+        setEarningsSummary(earnings?.earnings_summary || null)
+        return
+      }
+
       setActiveRide(cockpitRide)
       setEarningsSummary(earnings?.earnings_summary || null)
 
@@ -346,7 +393,7 @@ export default function MapHome() {
     } catch (err) {
       if (refreshId !== refreshSeq.current) return
       setActiveRide(null)
-      setBackendError(err?.message || 'Backend ride lifecycle is unavailable')
+      setBackendError(err?.message || 'Backend job lifecycle is unavailable')
     } finally {
       if (refreshId === refreshSeq.current && !quiet) setLoadingBackend(false)
     }
@@ -355,6 +402,12 @@ export default function MapHome() {
   useEffect(() => {
     activeRideRef.current = activeRide
   }, [activeRide])
+
+  useEffect(() => {
+    if (status.state === DRIVER_STATES.REQUEST_INCOMING && activeRide) {
+      rideAi.onIncomingMatch(activeRide)
+    }
+  }, [status.state, activeRide?.rideId, rideAi.onIncomingMatch])
 
   const pickIncomingRideFromPool = useCallback((rides, excludeRideId = null) => {
     if (!Array.isArray(rides)) return null
@@ -437,7 +490,7 @@ export default function MapHome() {
       if (!hydrated) {
         if (prevRideId && prevBackendStatus && ACTIVE_BACKEND_STATUSES.has(prevBackendStatus)) {
           setBackendHideNotice(
-            'This ride was cancelled by the customer while you were offline.'
+            'This job was cancelled by the customer while you were offline.'
           )
           setActiveRide(null)
           setResumeNotice(null)
@@ -450,6 +503,7 @@ export default function MapHome() {
         await refreshBackendTruth(true, { quiet: true })
         return
       }
+      activeRideRef.current = hydrated.ride
       setActiveRide(hydrated.ride)
       setStatus(hydrated.state)
       if (
@@ -478,13 +532,22 @@ export default function MapHome() {
       setLoadingBackend(true)
       setBackendError(null)
       try {
+        let profileUnavailable = false
         const [meStatus, profile] = await Promise.all([
           driverAPI.getDriverMeStatus(),
-          driverAPI.getDriverSettingsProfile().catch(() => null),
+          driverAPI.getDriverSettingsProfile().catch(() => {
+            profileUnavailable = true
+            return null
+          }),
         ])
         if (cancelled) return
         setMeStatusSnapshot(meStatus)
-        const approved = String(profile?.approval_status || 'approved').toLowerCase() === 'approved'
+        const readiness = buildDriverReadiness({
+          accountProfile: profile,
+          backendUnavailable: profileUnavailable,
+        })
+        setDriverReadiness(readiness)
+        const approved = !readiness.blockers.some((item) => item.code === 'approval_required')
         setDriverApproved(approved)
         const backendStatus = statusFromDriverMe(meStatus)
         if (meStatus?.last_seen_at) {
@@ -495,6 +558,7 @@ export default function MapHome() {
         }
         const hydrated = hydrateFromActiveRidePayload(activeRidePayload)
         if (hydrated) {
+          activeRideRef.current = hydrated.ride
           setActiveRide(hydrated.ride)
           setStatus(hydrated.state)
           setResumeNotice(hydrated.resume)
@@ -530,9 +594,32 @@ export default function MapHome() {
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [refreshBackendTruth])
 
+  useEffect(() => {
+    if (!status.online || activeRide) return undefined
+    const interval = window.setInterval(async () => {
+      try {
+        const payload = await refetchActiveRide()
+        const hydrated = hydrateFromActiveRidePayload(payload)
+        if (hydrated) {
+          activeRideRef.current = hydrated.ride
+          setActiveRide(hydrated.ride)
+          setStatus(hydrated.state)
+        }
+      } catch {
+        /* polling is best-effort */
+      }
+    }, 4000)
+    return () => window.clearInterval(interval)
+  }, [status.online, activeRide, refetchActiveRide])
+
   const goOnline = useCallback(async () => {
-    if (!driverApproved) {
-      setBackendError('Account not approved — you cannot go online yet')
+    if (!driverReadiness.canGoOnline) {
+      const primary = driverReadiness.primaryBlocker
+      setBackendError(
+        primary
+          ? `You are not ready to go online yet. Reason: ${primary.label}. Action: ${primary.actionLabel}.`
+          : 'You are not ready to go online yet.'
+      )
       return
     }
     if (!canTransition(status.state, DRIVER_STATES.ONLINE_IDLE)) return
@@ -556,7 +643,7 @@ export default function MapHome() {
     } finally {
       setLoadingBackend(false)
     }
-  }, [refreshBackendTruth, status.state, clearConflictMemory, devicePosition, driverApproved])
+  }, [refreshBackendTruth, status.state, clearConflictMemory, devicePosition, driverReadiness])
 
   const goOffline = useCallback(async () => {
     if (activeRide) return
@@ -594,8 +681,9 @@ export default function MapHome() {
       const ride = backendRideToCockpitRide(response?.ride)
       setActiveRide(ride)
       setStatus({ state: DRIVER_STATES.REQUEST_INCOMING, online: true })
+      rideAi.onIncomingMatch(ride)
     } catch (err) {
-      setBackendError(err?.message || 'Could not create simulation ride')
+      setBackendError(err?.message || 'Could not create simulation job')
     } finally {
       setLoadingBackend(false)
     }
@@ -614,6 +702,7 @@ export default function MapHome() {
       const ride = backendRideToCockpitRide(response?.ride)
       setActiveRide(ride)
       setStatus({ state: DRIVER_STATES.ACCEPTED_TO_PICKUP, online: true })
+      rideAi.onDriverAccept(ride)
     } catch (err) {
       const structuredConflict =
         err?.status === 409 && isBackendClaimConflict(err?.detail)
@@ -650,6 +739,7 @@ export default function MapHome() {
   const declineRide = useCallback(
     async (options = {}) => {
       if (!activeRide) return
+      rideAi.onDriverDecline(activeRide)
       setLoadingBackend(true)
       setBackendError(null)
       setBackendHideNotice(null)
@@ -665,17 +755,17 @@ export default function MapHome() {
         setStatus({ state: DRIVER_STATES.ONLINE_IDLE, online: true })
         if (options.reason !== 'dispatch_timeout') {
           setBackendHideNotice(
-            'Offer declined. The ride may be sent to another eligible driver.'
+            'Offer declined. The job may be sent to another eligible driver.'
           )
         }
         await refreshBackendTruth(true)
       } catch (err) {
-        setBackendError(err?.message || 'Could not decline ride')
+        setBackendError(err?.message || 'Could not decline job')
       } finally {
         setLoadingBackend(false)
       }
     },
-    [activeRide, refreshBackendTruth]
+    [activeRide, refreshBackendTruth, rideAi.onDriverDecline]
   )
 
   useEffect(() => {
@@ -687,8 +777,10 @@ export default function MapHome() {
         if (!cancelled && (presence?.state === 'stale' || presence?.state === 'disconnected')) {
           setStatus(statusFromPresence(presence))
         }
-      } catch {
-        // Heartbeat must not invent local truth.
+        if (!cancelled) clearNetworkDegraded()
+      } catch (err) {
+        if (!cancelled && isTransientNetworkError(err)) markNetworkDegraded()
+        // Heartbeat must not invent local truth about ride state.
       }
     }
     heartbeat()
@@ -697,7 +789,7 @@ export default function MapHome() {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [status.online])
+  }, [status.online, markNetworkDegraded, clearNetworkDegraded])
 
   useEffect(() => {
     if (!status.online || activeRide || status.state !== DRIVER_STATES.ONLINE_IDLE) return undefined
@@ -739,6 +831,14 @@ export default function MapHome() {
     return () => window.clearInterval(timer)
   }, [activeRide, refreshBackendTruth, sseFailed, status.online, status.state])
 
+  useEffect(() => {
+    if (!status.online || status.state !== DRIVER_STATES.REQUEST_INCOMING || !activeRide?.rideId) return undefined
+    const timer = window.setInterval(() => {
+      refreshBackendTruth(true, { quiet: true })
+    }, 1_000)
+    return () => window.clearInterval(timer)
+  }, [activeRide?.rideId, refreshBackendTruth, status.online, status.state])
+
   const advanceState = useCallback(async () => {
     const next = getNextDriverAction(status.state)
     if (!next) return
@@ -753,6 +853,7 @@ export default function MapHome() {
       if (next.next === DRIVER_STATES.ARRIVED_PICKUP) {
         response = await driverAPI.arrivePickup(activeRide.rideId)
       } else if (next.next === DRIVER_STATES.IN_PROGRESS) {
+        rideAi.onTripStart(activeRide)
         response = await driverAPI.startRide(activeRide.rideId)
       } else if (next.next === DRIVER_STATES.COMPLETED) {
         response = await driverAPI.completeRide(activeRide.rideId)
@@ -761,6 +862,7 @@ export default function MapHome() {
       if (next.next === DRIVER_STATES.COMPLETED) {
         const completedRide = response?.ride || activeRide.raw
         const cockpitCompleted = backendRideToCockpitRide(completedRide)
+        await rideAi.onTripComplete({ ...cockpitCompleted, raw: completedRide })
         const fare =
           response?.fare_earned ??
           driverPayoutDollars(completedRide) ??
@@ -786,20 +888,31 @@ export default function MapHome() {
       setStatus({ state: next.next, online: true })
     } catch (err) {
       if (isTransientNetworkError(err)) markNetworkDegraded()
-      setBackendError(err?.message || 'Could not advance ride')
+      setBackendError(err?.message || 'Could not advance job')
     } finally {
       setLoadingBackend(false)
     }
-  }, [activeRide, refreshBackendTruth, status.state, markNetworkDegraded, clearNetworkDegraded])
+  }, [activeRide, refreshBackendTruth, status.state, markNetworkDegraded, clearNetworkDegraded, rideAi])
 
   const handleLogout = useCallback(() => {
     logout()
-    navigate('/', { replace: true })
+    navigate('/', {
+      replace: true,
+      state: { authNotice: 'Signed out. Driver session ended safely.' },
+    })
   }, [logout, navigate])
 
   const stateMeta = STATE_LABELS[status.state] ?? STATE_LABELS[DRIVER_STATES.OFFLINE]
   const isOnline = status.online && status.state !== DRIVER_STATES.OFFLINE
-  const onlineToggleDisabled = !driverApproved || (!!activeRide && isOnline)
+  const isAutoAssigned = activeRide?.raw?.lifecycle_reason === 'auto_assigned'
+  const onlineToggleDisabled = (!driverReadiness.canGoOnline && !isOnline) || (!!activeRide && isOnline)
+  const handleReadinessAction = useCallback(() => {
+    if (driverReadiness.canGoOnline) {
+      goOnline()
+      return
+    }
+    navigate('/profile')
+  }, [driverReadiness.canGoOnline, goOnline, navigate])
 
   useEffect(() => {
     if (!activeRide || activeRide.status !== DRIVER_STATES.REQUEST_INCOMING) return
@@ -948,7 +1061,7 @@ export default function MapHome() {
             compact={locationChipCompact}
           />
         </div>
-        {onlineToggleDisabled && (
+        {onlineToggleDisabled && isOnline && (
           <p className="cockpit-offline-hint">Finish the current ride to go offline</p>
         )}
         <CockpitNetworkBanner
@@ -986,35 +1099,45 @@ export default function MapHome() {
         ) : null}
         {!driverApproved ? (
           <div
-            className="mx-3 mt-2 rounded-xl border border-amber-500/50 bg-amber-950/80 px-3 py-2 text-xs text-amber-100"
+            className="mx-3 mt-2 rounded-xl border border-amber-500/40 px-3 py-2.5 text-xs"
+            style={{ background: 'rgba(120,53,15,0.55)', color: '#fcd34d', borderColor: 'rgba(245,158,11,0.4)' }}
             data-testid="cockpit-approval-gate"
           >
-            Account not approved — you cannot go online. Check Profile for status.
+            <span className="font-semibold">Account not approved</span>
+            {' — '}you cannot go online. Check Account for status.
           </div>
         ) : null}
         {presenceStale && isOnline ? (
           <div
-            className="mx-3 mt-2 rounded-xl border border-orange-500/40 bg-orange-950/70 px-3 py-2 text-xs text-orange-100"
+            className="mx-3 mt-2 rounded-xl border px-3 py-2.5 text-xs flex items-start gap-2"
+            style={{ background: 'rgba(124,45,18,0.55)', color: '#fdba74', borderColor: 'rgba(249,115,22,0.4)' }}
             data-testid="cockpit-presence-stale"
           >
-            You may appear offline to dispatch — last heartbeat was over 45s ago.
-            {meStatusSnapshot?.last_seen_at
-              ? ` Last seen: ${new Date(meStatusSnapshot.last_seen_at).toLocaleTimeString()}.`
-              : ''}
+            <span className="text-base leading-none mt-0.5">⚠</span>
+            <span>
+              <span className="font-semibold">Presence stale</span>
+              {' — '}dispatch may not see you as online.
+              {meStatusSnapshot?.last_seen_at
+                ? ` Last heartbeat: ${new Date(meStatusSnapshot.last_seen_at).toLocaleTimeString()}.`
+                : ''}
+            </span>
           </div>
         ) : null}
         {resumeNotice && activeRide && (
           <div
-            className="mx-3 mt-2 rounded-xl border border-sky-500/40 bg-sky-950/80 px-3 py-2 text-xs text-sky-100"
+            className="mx-3 mt-2 rounded-xl border px-3 py-2.5 text-xs"
+            style={{ background: 'rgba(12,74,110,0.6)', color: '#7dd3fc', borderColor: 'rgba(56,189,248,0.35)' }}
             data-testid="cockpit-resume-notice"
           >
             <div className="flex items-start justify-between gap-2">
               <span>
-                Resumed active ride #{resumeNotice.rideId} ({resumeNotice.status})
+                <span className="font-semibold">Ride restored</span>
+                {' '}#{resumeNotice.rideId} · {resumeNotice.status}
               </span>
               <button
                 type="button"
-                className="shrink-0 text-sky-300 underline"
+                className="shrink-0 font-medium underline"
+                style={{ color: '#38bdf8' }}
                 onClick={() => setResumeNotice(null)}
               >
                 Dismiss
@@ -1022,6 +1145,14 @@ export default function MapHome() {
             </div>
           </div>
         )}
+        {isAutoAssigned && activeRide ? (
+          <div
+            className="mx-3 mt-2 rounded-xl border border-cyan-500/50 bg-cyan-950/80 px-3 py-2 text-xs text-cyan-100"
+            data-testid="auto-assignment-notice"
+          >
+            Ride auto-assigned to you — no need to scan the open board. Head to pickup when ready.
+          </div>
+        ) : null}
       </div>
 
       <CityRealityPanel
@@ -1067,12 +1198,11 @@ export default function MapHome() {
 
       {completedFlash && (
         <div data-testid="completed-flash" className="completed-flash-banner">
-          <p className="font-semibold text-emerald-100">
-            Trip with {completedFlash.riderName} completed
-          </p>
-          <p className="mt-1 text-[13px] text-emerald-200/90" data-testid="completed-flash-headline">
-            Driver total payout {formatCurrency(completedFlash.fare)} · added to earnings
-          </p>
+          <CompletionReceiptCard
+            ride={completedFlash.ride}
+            amount={completedFlash.fare}
+            onDismiss={() => setCompletedFlash(null)}
+          />
           {completedFlash.ride?.pricing && (
             <div className="mt-3">
               <TripTruthDetails
@@ -1115,6 +1245,9 @@ export default function MapHome() {
           sseFailed={sseFailed}
           lastCompletedRide={lastCompletedRide}
           onDismissCompletedSummary={() => setLastCompletedRide(null)}
+          rideAi={rideAi}
+          readiness={driverReadiness}
+          onReadinessAction={handleReadinessAction}
         />
       )}
 

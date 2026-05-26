@@ -3,8 +3,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
-import asyncio
 import json
+import queue as thread_queue
 import random
 from typing import Optional, Union
 
@@ -124,6 +124,7 @@ from schemas.earnings import (
     EarningsRecentRide,
     EarningsSummary,
 )
+from schemas.payment import DriverRidePaymentsResponse, RidePaymentResponse, RidePaymentView
 from schemas.ride_lifecycle import (
     CompleteRideResponse,
     DeclineRideBody,
@@ -137,6 +138,7 @@ from services.map_route_foundation import (
     map_foundation_dict,
     stamp_route_calculated,
 )
+from services.ride_route_grounding import ground_ride_route
 from services.v01_lifecycle import resolve_v01_lifecycle_status
 from services.ride_pricing import (
     PricingLockedError,
@@ -434,8 +436,14 @@ class SimulationRideCreate(BaseModel):
     pickup_longitude: Optional[float] = Field(None, ge=-180, le=180)
     dropoff_latitude: Optional[float] = Field(None, ge=-90, le=90)
     dropoff_longitude: Optional[float] = Field(None, ge=-180, le=180)
-    distance_km: float = 4.0
-    duration_minutes: int = 12
+    distance_km: Optional[float] = Field(
+        None,
+        description="Optional override; when omitted, distance comes from OSRM routing",
+    )
+    duration_minutes: Optional[int] = Field(
+        None,
+        description="Optional override; when omitted, duration comes from OSRM routing",
+    )
 
     @field_validator("customer_name", "pickup_location", "destination")
     @classmethod
@@ -447,14 +455,18 @@ class SimulationRideCreate(BaseModel):
 
     @field_validator("distance_km")
     @classmethod
-    def distance_range(cls, v: float) -> float:
+    def distance_range(cls, v: Optional[float]) -> Optional[float]:
+        if v is None:
+            return v
         if v < 0 or v > 10_000:
             raise ValueError("distance_km must be between 0 and 10000")
         return v
 
     @field_validator("duration_minutes")
     @classmethod
-    def duration_range(cls, v: int) -> int:
+    def duration_range(cls, v: Optional[int]) -> Optional[int]:
+        if v is None:
+            return v
         if v < 0 or v > 24 * 60:
             raise ValueError("duration_minutes must be between 0 and 1440")
         return v
@@ -518,10 +530,16 @@ def ride_to_view(
     fare_display = ride.fare_amount
     if pricing_row and pricing_row.driver_earnings_cents:
         fare_display = cents_to_display_dollars(pricing_row.driver_earnings_cents)
+    assigned_driver_name = None
+    if ride.driver_id is not None and db is not None:
+        driver_row = db.query(User).filter(User.id == ride.driver_id).first()
+        if driver_row is not None:
+            assigned_driver_name = driver_row.name
     return RideDriverView(
         id=ride.id,
         rider_id=ride.customer_id,
         driver_id=ride.driver_id,
+        assigned_driver_name=assigned_driver_name,
         customer_name=ride.customer_name,
         status=normalize_ride_status(ride.status).value,
         v01_lifecycle_status=resolve_v01_lifecycle_status(ride, pricing_row),
@@ -571,6 +589,9 @@ def ride_to_view(
         traffic_signal_aware=map_meta["traffic_signal_aware"],
         route_confidence=map_meta["route_confidence"],
         route_calculated_at=map_meta["route_calculated_at"],
+        route_source=map_meta["route_source"],
+        route_used_fallback=map_meta["route_used_fallback"],
+        route_provider_confidence=map_meta["route_provider_confidence"],
         google_maps_fallback_enabled=map_meta["google_maps_fallback_enabled"],
         mapbox_traffic_enabled=map_meta["mapbox_traffic_enabled"],
     )
@@ -1147,8 +1168,7 @@ def get_available_rides(
 
 
 @router.get("/available-rides/stream")
-async def stream_available_rides(
-    request: Request,
+def stream_available_rides(
     driver_user: User = Depends(driver_sse_access),
     db: Session = Depends(get_db),
     policy: BaseDispatchPolicy = Depends(get_active_dispatch_policy),
@@ -1157,17 +1177,18 @@ async def stream_available_rides(
     snapshot = _list_available_rides_for_driver(db, driver_user, policy)
     snapshot_payload = [view.model_dump(mode="json") for view in snapshot]
 
-    async def event_generator():
-        yield format_sse_event("snapshot", snapshot_payload)
-        async with event_bus.subscribe(RIDE_POOL_TOPIC) as queue:
+    def event_generator():
+        sync_queue = event_bus.subscribe_sync(RIDE_POOL_TOPIC)
+        try:
+            yield format_sse_event("snapshot", snapshot_payload)
             while True:
-                if await request.is_disconnected():
-                    break
                 try:
-                    payload = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    payload = sync_queue.get(timeout=15.0)
                     yield format_sse_event("delta", json.loads(payload))
-                except asyncio.TimeoutError:
+                except thread_queue.Empty:
                     yield ": keep-alive\n\n"
+        finally:
+            event_bus.unsubscribe_sync(RIDE_POOL_TOPIC, sync_queue)
 
     return StreamingResponse(
         event_generator(),
@@ -1257,21 +1278,18 @@ def create_simulation_ride(
         pickup_longitude=pickup_lng,
         dropoff_latitude=dropoff_lat,
         dropoff_longitude=dropoff_lng,
-        distance=body.distance_km,
-        duration=body.duration_minutes,
+        distance=body.distance_km if body.distance_km is not None else 0.0,
+        duration=body.duration_minutes if body.duration_minutes is not None else 0,
         lifecycle_reason="simulation",
     )
     apply_map_foundation_defaults(ride)
-    estimate = routing_route((pickup_lat, pickup_lng), (dropoff_lat, dropoff_lng))
-    if body.distance_km:
+    estimate = ground_ride_route(ride)
+    if body.distance_km is not None:
         ride.distance = body.distance_km
-    else:
-        apply_route_estimate(ride, estimate)
-    if body.duration_minutes:
+    if body.duration_minutes is not None:
         ride.duration = body.duration_minutes
-    elif not ride.duration:
+    elif estimate and not ride.duration:
         ride.duration = estimate.duration_minutes
-    stamp_route_calculated(ride)
     db.add(ride)
     db.flush()
     pricing_row = quote_ride_pricing(
@@ -1648,7 +1666,7 @@ def _accept_ride_impl(
         actor_id=driver_user.id,
     )
     record_dispatch_accepted(db, ride, driver_user.id)
-    stamp_route_calculated(ride)
+    ground_ride_route(ride)
     db.commit()
     db.refresh(ride)
     notify_driver_in_app(
@@ -1658,6 +1676,9 @@ def _accept_ride_impl(
         message=f"You accepted ride #{ride_id}. Head to pickup when ready.",
         notif_type=NotificationType.RIDE_ACCEPTED,
     )
+    from services.ride_payment import authorize_payment_for_ride
+
+    authorize_payment_for_ride(db, ride)
     db.commit()
     _broadcast_pool_ride_removed(ride_id=ride_id, event=POOL_EVENT_CLAIMED)
     return RideTransitionResponse(
@@ -2188,6 +2209,9 @@ def _complete_ride_impl(
             "driver_shareable_fare_cents": pricing_row.driver_shareable_fare_cents,
         },
     )
+    from services.ride_payment import capture_payment_for_ride
+
+    capture_payment_for_ride(db, ride)
 
     db.commit()
     db.refresh(ride)
@@ -2204,6 +2228,52 @@ def _complete_ride_impl(
         fare_earned=ride.fare_amount or 0.0,
         ride=ride_to_view(ride, db=db),
     )
+
+
+@router.get("/rides/{ride_id}/payment", response_model=RidePaymentResponse)
+def get_ride_payment_for_driver(
+    ride_id: int,
+    driver_user: AuthPrincipal = Depends(DRIVER_ACCESS),
+    db: Session = Depends(get_db),
+):
+    driver_user = load_principal_user(db, driver_user)
+    ride = db.query(Ride).filter(Ride.id == ride_id).first()
+    if not ride or ride.driver_id != driver_user.id:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    from services.ride_payment import get_ride_payment, payment_to_dict
+
+    payment = get_ride_payment(db, ride_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    return {
+        "message": f"Payment for ride {ride_id}",
+        "payment": RidePaymentView.model_validate(payment_to_dict(payment)),
+    }
+
+
+@router.get("/me/ride-payments", response_model=DriverRidePaymentsResponse)
+def list_my_ride_payments(
+    driver_user: AuthPrincipal = Depends(DRIVER_ACCESS),
+    db: Session = Depends(get_db),
+):
+    driver_user = load_principal_user(db, driver_user)
+    from models.payment import PAYMENT_STATUS_CAPTURED, RidePayment
+    from services.ride_payment import payment_to_dict
+
+    rows = (
+        db.query(RidePayment)
+        .filter(RidePayment.driver_id == driver_user.id)
+        .order_by(RidePayment.id.desc())
+        .limit(100)
+        .all()
+    )
+    payments = [RidePaymentView.model_validate(payment_to_dict(row)) for row in rows]
+    total = sum(p.amount_cents for p in rows if p.status == PAYMENT_STATUS_CAPTURED)
+    return {
+        "message": "Driver ride payments",
+        "payments": payments,
+        "total_captured_cents": total,
+    }
 
 
 @router.get("/earnings", response_model=DriverEarningsResponse)
@@ -2338,12 +2408,21 @@ def get_driver_profile(
         "email": driver_user.email,
         "name": driver_user.name,
         "role": role_value,
+        "license_no": driver_user.license_no,
         "approval_status": approval_status,
         "vehicle": {
             "make": _vehicle_field(driver_user.vehicle_make),
             "model": _vehicle_field(driver_user.vehicle_model),
             "plate": _vehicle_field(driver_user.license_plate),
         },
+        "vehicle_year": driver_user.vehicle_year,
+        "vehicle_ready": bool(driver_user.vehicle_ready),
+        "insurance_policy": driver_user.insurance_policy,
+        "insurance_expires_at": (
+            driver_user.insurance_expires_at.isoformat()
+            if driver_user.insurance_expires_at
+            else None
+        ),
         "read_only": True,
     }
 
@@ -2396,6 +2475,12 @@ def update_driver_profile(
             "vehicle_year": driver_user.vehicle_year,
             "license_plate": driver_user.license_plate,
             "insurance_policy": driver_user.insurance_policy,
+            "insurance_expires_at": (
+                driver_user.insurance_expires_at.isoformat()
+                if driver_user.insurance_expires_at
+                else None
+            ),
+            "vehicle_ready": bool(driver_user.vehicle_ready),
             "availability": driver_user.availability,
             "last_latitude": driver_user.last_latitude,
             "last_longitude": driver_user.last_longitude,

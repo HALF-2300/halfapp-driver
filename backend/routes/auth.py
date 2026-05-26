@@ -182,6 +182,136 @@ def register(body: RegisterBody, request: Request, db: Session = Depends(get_db)
     user = create_user(db, body.email, body.name, body.password, role, body.license_no)
     return _auth_token_response(db, user, request)
 
+
+@router.post("/rider/register")
+def rider_register(body: RegisterBody, request: Request, db: Session = Depends(get_db)):
+    """Customer registration for the rider app — role is always customer."""
+    if get_user_by_email(db, body.email):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Email Already Exists",
+                "message": f"An account with email '{body.email}' is already registered",
+                "field": "email",
+                "suggestion": "Try logging in instead, or use a different email address",
+            },
+        )
+
+    if len(body.password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Weak Password",
+                "message": "Password must be at least 6 characters long",
+                "field": "password",
+                "suggestion": "Choose a stronger password with at least 6 characters",
+            },
+        )
+
+    user = create_user(db, body.email, body.name, body.password, UserRole.CUSTOMER)
+    return _auth_token_response(db, user, request)
+
+
+@router.post("/rider/login")
+def rider_login(body: LoginBody, request: Request, db: Session = Depends(get_db)):
+    """Customer login for the rider app."""
+    user = get_user_by_email(db, body.email)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "Account Not Found",
+                "message": f"No account found with email '{body.email}'",
+                "field": "email",
+                "suggestion": "Check your email address or register for a new account",
+            },
+        )
+
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "Incorrect Password",
+                "message": "The password you entered is incorrect",
+                "field": "password",
+                "suggestion": "Please check your password and try again",
+            },
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Account Deactivated",
+                "message": "Your account has been deactivated",
+                "suggestion": "Contact support for account reactivation",
+            },
+        )
+
+    if user.role != UserRole.CUSTOMER:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Access Denied",
+                "message": f"This is a rider app. {user.role.value} accounts cannot login here.",
+                "role": user.role.value,
+                "suggestion": "Please use the driver app for driver access",
+            },
+        )
+
+    return _auth_token_response(db, user, request)
+
+
+@router.post("/admin/login")
+def admin_login(body: LoginBody, request: Request, db: Session = Depends(get_db)):
+    """Admin login for the ops console."""
+    user = get_user_by_email(db, body.email)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "Account Not Found",
+                "message": f"No account found with email '{body.email}'",
+                "field": "email",
+                "suggestion": "Check your email address or contact platform admin",
+            },
+        )
+
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "Incorrect Password",
+                "message": "The password you entered is incorrect",
+                "field": "password",
+                "suggestion": "Please check your password and try again",
+            },
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Account Deactivated",
+                "message": "Your account has been deactivated",
+                "suggestion": "Contact support for account reactivation",
+            },
+        )
+
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Access Denied",
+                "message": f"This is an ops console. {user.role.value} accounts cannot login here.",
+                "role": user.role.value,
+                "suggestion": "Use the rider or driver app for your account type",
+            },
+        )
+
+    return _auth_token_response(db, user, request)
+
+
 @router.post("/login")
 def login(body: LoginBody, request: Request, db: Session = Depends(get_db)):
     user = get_user_by_email(db, body.email)

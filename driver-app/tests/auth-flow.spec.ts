@@ -53,7 +53,7 @@ test('driver auth flow: register, welcome, logout, login, persistence', async ({
     page.waitForURL(/\/(#\/|#)$/, { timeout: 15_000 }),
     page.getByTestId('logout-btn').click(),
   ]);
-  const signInTab = page.getByRole('button', { name: 'Sign In' }).first();
+  const signInTab = page.getByTestId('auth-tab-signin');
   await expect(signInTab).toBeVisible();
   await signInTab.click();
 

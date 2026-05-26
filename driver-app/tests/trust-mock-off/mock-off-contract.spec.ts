@@ -134,7 +134,7 @@ test.describe('Mock-off + live API contract', () => {
     await expect(page.getByTestId('completed-flash')).toBeVisible()
 
     await page.getByTestId('tab-trips').click()
-    await expect(page.getByText('Backend completed trips')).toBeVisible()
+    await expect(page.getByText('Completed deliveries')).toBeVisible()
     await expect(page.getByText('Trust Lifecycle Rider')).toBeVisible()
 
     await page.getByTestId('tab-earnings').click()
@@ -181,7 +181,7 @@ test.describe('Mock-off + live API contract', () => {
     })
 
     await page.getByTestId('tab-trips').click()
-    await expect(page.getByText('No trips yet.')).toBeVisible()
+    await expect(page.getByText('No deliveries yet.')).toBeVisible()
     await expect(page.getByText('Fake LocalStorage Rider')).toHaveCount(0)
 
     await page.getByTestId('tab-earnings').click()
@@ -200,7 +200,7 @@ test.describe('Mock-off + live API contract', () => {
   test('inbox notifications: empty list from API (no fake system cards)', async ({ page }) => {
     await registerAndLogin(page)
     await page.goto('/#/notifications')
-    await expect(page.getByRole('heading', { name: 'Inbox' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('notifications-empty')).toBeVisible()
     await expect(page.getByText('System Update')).toHaveCount(0)
   })
@@ -249,7 +249,7 @@ test.describe('Mock-off + live API contract', () => {
     await expect(page.getByTestId('sheet-request-incoming')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('accept-ride-btn').click()
     await expect(page.getByTestId('accept-ride-error')).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByTestId('accept-ride-error')).toContainText('Ride already claimed')
+    await expect(page.getByTestId('accept-ride-error')).toContainText('Job taken by another driver')
   })
 
   test('messages tab remains explicitly demo', async ({ page }) => {

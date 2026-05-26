@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -15,6 +15,7 @@ DRIVER_ACCESS = require_role("driver")
 
 @router.get("/map")
 def crl_map(
+    response: Response,
     driver_user: AuthPrincipal = Depends(DRIVER_ACCESS),
     db: Session = Depends(get_db),
     window: str = Query(default="30m"),
@@ -27,17 +28,21 @@ def crl_map(
             window_minutes = int(window[:-1])
         except ValueError:
             raise HTTPException(status_code=400, detail="invalid_window") from None
-    return build_crl_map_response(db, window_minutes=window_minutes, min_conf=min_conf)
+    body, source = build_crl_map_response(db, window_minutes=window_minutes, min_conf=min_conf)
+    response.headers["X-CRL-Source"] = source
+    return body
 
 
 @router.get("/explain")
 def crl_explain(
+    response: Response,
     h3: str = Query(..., min_length=3),
     driver_user: AuthPrincipal = Depends(DRIVER_ACCESS),
     db: Session = Depends(get_db),
 ):
     _ = driver_user
-    body = build_crl_explain_response(db, h3_cell=h3)
+    body, source = build_crl_explain_response(db, h3_cell=h3)
     if body is None:
         raise HTTPException(status_code=404, detail="cell_not_found")
+    response.headers["X-CRL-Source"] = source
     return body

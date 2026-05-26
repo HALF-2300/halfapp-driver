@@ -1,0 +1,39 @@
+# HalfApp local dev dependencies (P0 gates G1 + G2).
+# Usage:
+#   docker compose up -d postgres
+#   docker compose up -d osrm   # requires docker/osrm-portland/data prepared — see README
+#
+# Backend:
+#   DATABASE_URL=postgresql+psycopg2://halfapp:halfapp@localhost:5432/halfapp
+#   OSRM_BASE_URL=http://127.0.0.1:5000
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: halfapp-postgres-dev
+    environment:
+      POSTGRES_USER: halfapp
+      POSTGRES_PASSWORD: halfapp
+      POSTGRES_DB: halfapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - halfapp_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U halfapp -d halfapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: halfapp-osrm-portland
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./docker/osrm-portland/data:/data
+    command: osrm-routed --algorithm mld /data/oregon-latest.osrm
+    restart: unless-stopped
+
+volumes:
+  halfapp_pg_data:

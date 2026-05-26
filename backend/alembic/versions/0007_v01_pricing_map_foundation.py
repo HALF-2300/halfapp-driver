@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from alembic import op
 
+from db_migration_helpers import is_postgresql
+
 
 revision = "0007_v01_pricing_map_foundation"
 down_revision = "0006_dossier_dispatch_ledger_foundation"
@@ -17,8 +19,7 @@ depends_on = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    conn.exec_driver_sql(
-        """
+    ride_pricing_sql = """
         CREATE TABLE IF NOT EXISTS ride_pricing (
             ride_id INTEGER PRIMARY KEY,
             driver_shareable_fare_cents INTEGER NOT NULL DEFAULT 0,
@@ -42,20 +43,27 @@ def upgrade() -> None:
             FOREIGN KEY (ride_id) REFERENCES rides(id) ON DELETE CASCADE
         )
         """
-    )
+    if is_postgresql(conn):
+        ride_pricing_sql = ride_pricing_sql.replace("DATETIME", "TIMESTAMP")
+    conn.exec_driver_sql(ride_pricing_sql)
     for col, col_type in (
         ("route_provider", "TEXT"),
         ("traffic_provider", "TEXT"),
         ("traffic_aware", "INTEGER"),
         ("route_confidence", "TEXT"),
-        ("route_calculated_at", "DATETIME"),
+        ("route_calculated_at", "TIMESTAMP" if is_postgresql(conn) else "DATETIME"),
         ("google_maps_fallback_enabled", "INTEGER DEFAULT 0"),
         ("mapbox_traffic_enabled", "INTEGER DEFAULT 0"),
     ):
-        try:
-            conn.exec_driver_sql(f"ALTER TABLE rides ADD COLUMN {col} {col_type}")
-        except Exception:
-            pass
+        if is_postgresql(conn):
+            conn.exec_driver_sql(
+                f"ALTER TABLE rides ADD COLUMN IF NOT EXISTS {col} {col_type}"
+            )
+        else:
+            try:
+                conn.exec_driver_sql(f"ALTER TABLE rides ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass
 
 
 def downgrade() -> None:

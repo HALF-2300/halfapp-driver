@@ -122,8 +122,8 @@ test.describe('Ride transparency and 409 conflict (trust lane)', () => {
       'data-truth-status',
       'backend_conflict'
     )
-    await expect(page.getByText('Ride already claimed')).toBeVisible()
-    await expect(page.getByText('Another driver got this ride first.')).toBeVisible()
+    await expect(page.getByText('Job already claimed')).toBeVisible()
+    await expect(page.getByText('Another driver accepted this job first.')).toBeVisible()
     await expect(page.getByTestId('sheet-request-incoming')).toHaveCount(0)
   })
 })

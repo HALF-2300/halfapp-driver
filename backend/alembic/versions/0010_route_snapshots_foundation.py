@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from alembic import op
 
+from db_migration_helpers import is_postgresql
+
 revision = "0010_route_snapshots_foundation"
 down_revision = "0009_traffic_signal_aware"
 branch_labels = None
@@ -16,8 +18,7 @@ depends_on = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    conn.exec_driver_sql(
-        """
+    route_snapshots_sql = """
         CREATE TABLE IF NOT EXISTS route_snapshots (
             id INTEGER PRIMARY KEY,
             ride_id INTEGER NOT NULL,
@@ -40,7 +41,9 @@ def upgrade() -> None:
             CHECK (duration_seconds >= 0)
         )
         """
-    )
+    if is_postgresql(conn):
+        route_snapshots_sql = route_snapshots_sql.replace("DATETIME", "TIMESTAMP")
+    conn.exec_driver_sql(route_snapshots_sql)
     conn.exec_driver_sql(
         "CREATE INDEX IF NOT EXISTS ix_route_snapshots_ride_id ON route_snapshots (ride_id)"
     )

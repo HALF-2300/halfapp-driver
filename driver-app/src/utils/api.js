@@ -247,6 +247,20 @@ class DriverAPI {
    */
   async callRideWrite(endpoint, options = {}, rideMeta = {}, isRetry = false) {
     const { rideId, action } = rideMeta
+    if (
+      ALLOW_OFFLINE_MOCK &&
+      typeof localStorage !== 'undefined' &&
+      localStorage.getItem('driver_token')?.startsWith('mock_')
+    ) {
+      const mockBody =
+        typeof options.body === 'string' && options.body
+          ? JSON.parse(options.body)
+          : options.body || {}
+      const data = this.getMockResponse(endpoint, options.method || 'POST', mockBody)
+      clearIdempotencyKey(rideId, action)
+      return data
+    }
+
     const url = `${this.getBaseUrl()}${endpoint}`
     const idempotencyKey = getIdempotencyKey(rideId, action)
     const headers = {
@@ -314,6 +328,13 @@ class DriverAPI {
           name: 'John Driver',
           role: 'driver',
           license_no: 'DL12345',
+          vehicle_make: 'Toyota',
+          vehicle_model: 'Prius',
+          license_plate: 'BETA-001',
+          insurance_policy: 'BETA-POLICY-001',
+          insurance_expires_at: '2027-05-25T00:00:00Z',
+          vehicle_ready: true,
+          approval_status: 'approved',
           availability: 'offline',
           password: 'driver123',
           createdAt: new Date().toISOString()
@@ -324,6 +345,13 @@ class DriverAPI {
           name: 'Jane Driver',
           role: 'driver',
           license_no: 'DL67890',
+          vehicle_make: 'Honda',
+          vehicle_model: 'Civic',
+          license_plate: 'BETA-002',
+          insurance_policy: 'BETA-POLICY-002',
+          insurance_expires_at: '2027-05-25T00:00:00Z',
+          vehicle_ready: true,
+          approval_status: 'approved',
           availability: 'offline',
           password: 'driver456',
           createdAt: new Date().toISOString()
@@ -472,12 +500,16 @@ class DriverAPI {
         email: rest.email,
         name: rest.name,
         role: rest.role || 'driver',
-        approval_status: 'pending',
+        approval_status: rest.approval_status || 'pending',
+        license_no: rest.license_no || null,
         vehicle: {
           make: rest.vehicle_make || 'Not registered',
           model: rest.vehicle_model || 'Not registered',
           plate: rest.license_plate || 'Not registered',
         },
+        vehicle_ready: rest.vehicle_ready === true,
+        insurance_policy: rest.insurance_policy || null,
+        insurance_expires_at: rest.insurance_expires_at || null,
         read_only: true,
       }
     }
@@ -590,6 +622,33 @@ class DriverAPI {
     }
 
     const transparencyMatch = endpoint.match(/^\/drivers\/rides\/(\d+)\/transparency$/)
+    const paymentMatch = endpoint.match(/^\/drivers\/rides\/(\d+)\/payment$/)
+    if (paymentMatch && method === 'GET') {
+      const rideId = Number(paymentMatch[1])
+      const rides = this.getMockRideDatabase()
+      const ride = rides.find((item) => Number(item.id) === rideId)
+      if (!ride) throw new Error('Ride not found')
+      const pricing = ride.pricing || buildMockPricingViewForRide(ride, { lock: ride.status === 'completed' })
+      const gross = pricing.customer_total_cents || 925
+      const driverPayout = pricing.driver_ride_payout_cents || Math.round(gross * 0.72)
+      return {
+        message: 'Ride payment',
+        payment: {
+          id: rideId,
+          ride_id: rideId,
+          rider_id: ride.customer_id || null,
+          driver_id: ride.driver_id || 1,
+          amount_cents: gross,
+          driver_payout_cents: driverPayout,
+          currency: 'USD',
+          status: ride.status === 'completed' ? 'captured' : ride.status === 'cancelled' ? 'failed' : 'authorized',
+          created_at: ride.created_at,
+          authorized_at: ride.accepted_at,
+          captured_at: ride.completed_at,
+          failed_at: ride.cancelled_at,
+        },
+      }
+    }
     if (transparencyMatch && method === 'GET') {
       const rideId = Number(transparencyMatch[1])
       const rides = this.getMockRideDatabase()
@@ -914,6 +973,10 @@ class DriverAPI {
       return await this.call('/auth/me')
     } catch (error) {
       if (!ALLOW_OFFLINE_MOCK) {
+        throw error
+      }
+      const token = localStorage.getItem('driver_token')
+      if (error?.status === 401 || (token && !token.startsWith('mock_'))) {
         throw error
       }
       return this.getMockResponse('/auth/me')
@@ -1258,6 +1321,14 @@ class DriverAPI {
       if (!ALLOW_OFFLINE_MOCK) throw error
       return this.getMockResponse('/drivers/earnings')
     }
+  }
+
+  async getRidePayments() {
+    return await this.call('/drivers/me/ride-payments')
+  }
+
+  async getRidePayment(rideId) {
+    return await this.call(`/drivers/rides/${rideId}/payment`)
   }
 
   async getPaymentReconciliation() {

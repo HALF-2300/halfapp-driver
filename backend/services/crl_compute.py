@@ -35,9 +35,13 @@ class _Scratch:
     driver_ids: set[int] = field(default_factory=set)
 
 
-def _align_bucket_start(now, bucket_minutes: int):
+def align_bucket_start(now, bucket_minutes: int):
     minute = (now.minute // bucket_minutes) * bucket_minutes
     return now.replace(minute=minute, second=0, microsecond=0)
+
+
+def _align_bucket_start(now, bucket_minutes: int):
+    return align_bucket_start(now, bucket_minutes)
 
 
 def _sigmoid(x: float) -> float:
@@ -81,18 +85,12 @@ def _update_time_patterns(db: Session, since) -> None:
             )
 
 
-def compute_crl_bucket(
+def gather_crl_cell_scratches(
     db: Session,
     *,
-    window_minutes: int = 30,
-    bucket_minutes: int = 5,
-) -> datetime:
-    ensure_default_zones(db)
-    now = utc_now_naive()
-    bucket_start = _align_bucket_start(now, bucket_minutes)
-    since = now - timedelta(minutes=window_minutes)
-    _update_time_patterns(db, since - timedelta(days=7))
-
+    since,
+) -> dict[str, _Scratch]:
+    """Aggregate ride/telemetry signals per H3 cell (no DB writes)."""
     cells: dict[str, _Scratch] = defaultdict(_Scratch)
 
     open_statuses = {
@@ -135,6 +133,20 @@ def compute_crl_bucket(
     for point in db.query(DriverTelemetryPoint).filter(DriverTelemetryPoint.created_at >= since).all():
         cells[lat_lng_to_cell(point.lat, point.lng)].driver_ids.add(int(point.driver_id))
 
+    return cells
+
+
+def persist_crl_bucket(
+    db: Session,
+    *,
+    cells: dict[str, _Scratch],
+    bucket_start,
+    bucket_minutes: int,
+    now=None,
+) -> None:
+    """Write CRL snapshots and label explanations for one bucket."""
+    ensure_default_zones(db)
+    now = now or utc_now_naive()
     db.query(CrlCellSnapshot).filter(CrlCellSnapshot.bucket_start_ts == bucket_start).delete(
         synchronize_session=False
     )
@@ -202,4 +214,25 @@ def compute_crl_bucket(
         )
 
     db.commit()
+
+
+def compute_crl_bucket(
+    db: Session,
+    *,
+    window_minutes: int = 30,
+    bucket_minutes: int = 5,
+) -> datetime:
+    ensure_default_zones(db)
+    now = utc_now_naive()
+    bucket_start = _align_bucket_start(now, bucket_minutes)
+    since = now - timedelta(minutes=window_minutes)
+    _update_time_patterns(db, since - timedelta(days=7))
+    cells = gather_crl_cell_scratches(db, since=since)
+    persist_crl_bucket(
+        db,
+        cells=cells,
+        bucket_start=bucket_start,
+        bucket_minutes=bucket_minutes,
+        now=now,
+    )
     return bucket_start

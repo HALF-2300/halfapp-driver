@@ -60,13 +60,24 @@ export default function DriverSettings() {
   const [connectStatus, setConnectStatus] = useState(null)
   const [appSettings, setAppSettings] = useState(null)
   const [meProfile, setMeProfile] = useState(null)
+  const [accountProfile, setAccountProfile] = useState(null)
   const [profileDraft, setProfileDraft] = useState({ display_name: '', phone_e164: '' })
+  const [vehicleDraft, setVehicleDraft] = useState({
+    vehicle_make: '',
+    vehicle_model: '',
+    vehicle_year: '',
+    license_plate: '',
+    insurance_policy: '',
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [prefsError, setPrefsError] = useState(null)
   const [prefsSaving, setPrefsSaving] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
+  const [vehicleSaving, setVehicleSaving] = useState(false)
+  const [vehicleSaved, setVehicleSaved] = useState(false)
+  const [vehicleError, setVehicleError] = useState(null)
   const [logoutBusy, setLogoutBusy] = useState(false)
   const [passwordDraft, setPasswordDraft] = useState({ current: '', next: '' })
   const [passwordSaving, setPasswordSaving] = useState(false)
@@ -79,19 +90,35 @@ export default function DriverSettings() {
     setError(null)
     setPrefsError(null)
     try {
-      const [status, connect, settings, profile] = await Promise.all([
+      const [status, connect, settings, profile, account] = await Promise.all([
         driverAPI.getDriverMeStatus(),
         driverAPI.getStripeConnectStatus().catch(() => null),
         driverAPI.getDriverAppSettings(),
         driverAPI.getDriverMeProfile(),
+        driverAPI.getDriverSettingsProfile().catch(() => null),
       ])
       setMeStatus(status || null)
       setConnectStatus(connect || null)
       setAppSettings(settings || null)
       setMeProfile(profile || null)
+      setAccountProfile(account || null)
       setProfileDraft({
         display_name: profile?.display_name ?? '',
         phone_e164: profile?.phone_e164 ?? '',
+      })
+      const v = account?.vehicle || {}
+      const stringField = (raw) => {
+        const s = String(raw ?? '').trim()
+        // Backend serializes empty fields as "Not registered" — treat as blank in the form.
+        return s.toLowerCase() === 'not registered' ? '' : s
+      }
+      setVehicleDraft({
+        vehicle_make: stringField(v.make),
+        vehicle_model: stringField(v.model),
+        vehicle_year:
+          account?.vehicle_year != null ? String(account.vehicle_year) : '',
+        license_plate: stringField(v.plate),
+        insurance_policy: stringField(account?.insurance_policy),
       })
       setQuietHours(normalizeQuietHours(settings?.notif_quiet_hours))
       if (settings?.theme) applyTheme(settings.theme)
@@ -129,6 +156,54 @@ export default function DriverSettings() {
         }
       : null
     await patchAppSettings({ notif_quiet_hours: payload })
+  }
+
+  const saveVehicle = async () => {
+    setVehicleSaving(true)
+    setVehicleSaved(false)
+    setVehicleError(null)
+    try {
+      const yearStr = vehicleDraft.vehicle_year.trim()
+      let yearValue = null
+      if (yearStr) {
+        const n = Number(yearStr)
+        if (!Number.isFinite(n) || n < 1900 || n > 2100) {
+          throw new Error('Vehicle year must be between 1900 and 2100')
+        }
+        yearValue = Math.trunc(n)
+      }
+      const payload = {
+        vehicle_make: vehicleDraft.vehicle_make.trim() || null,
+        vehicle_model: vehicleDraft.vehicle_model.trim() || null,
+        vehicle_year: yearValue,
+        license_plate: vehicleDraft.license_plate.trim() || null,
+        insurance_policy: vehicleDraft.insurance_policy.trim() || null,
+      }
+      await driverAPI.updateProfile(payload)
+      // Re-fetch the canonical account profile so the readiness gate updates everywhere.
+      const account = await driverAPI.getDriverSettingsProfile().catch(() => null)
+      if (account) {
+        setAccountProfile(account)
+        const v = account.vehicle || {}
+        const norm = (raw) => {
+          const s = String(raw ?? '').trim()
+          return s.toLowerCase() === 'not registered' ? '' : s
+        }
+        setVehicleDraft({
+          vehicle_make: norm(v.make),
+          vehicle_model: norm(v.model),
+          vehicle_year:
+            account.vehicle_year != null ? String(account.vehicle_year) : '',
+          license_plate: norm(v.plate),
+          insurance_policy: norm(account.insurance_policy),
+        })
+      }
+      setVehicleSaved(true)
+    } catch (err) {
+      setVehicleError(err?.message || 'Could not save vehicle & documents')
+    } finally {
+      setVehicleSaving(false)
+    }
   }
 
   const saveMeProfile = async () => {
@@ -298,14 +373,14 @@ export default function DriverSettings() {
               />
               <Field label="Online (cockpit)" value={meStatus?.online ? 'Yes' : 'No'} />
               <Field
-                label="Active ride (backend)"
+                label="Active job (backend)"
                 value={activeRideId != null ? `#${activeRideId}` : 'None'}
                 testId="settings-active-ride-id"
               />
               <Field label="Last seen" value={formatSeenAt(meStatus?.last_seen_at)} />
               <p className="text-xs ha-truth-note">
                 Sign out revokes refresh tokens on the server when connected. Use cockpit to finish an
-                active ride before going offline.
+                active job before going offline.
               </p>
             </div>
           </section>
@@ -470,8 +545,129 @@ export default function DriverSettings() {
                 </p>
               ) : null}
               <p className="text-xs ha-truth-note">
-                Vehicle and account records remain on the Profile page (`/driver/profile`). This overlay is
-                for in-app display only.
+                Display name + phone are stored on the in-app overlay. Vehicle and document fields
+                below are the canonical account record used by the readiness gate.
+              </p>
+            </div>
+          </section>
+
+          <section className="ha-section" data-testid="settings-vehicle-section">
+            <h2 className="ha-section-title">Vehicle &amp; documents</h2>
+            <p className="text-xs ha-truth-note mb-2">
+              Fields used by the pre-online readiness check. The cockpit will block Go-online while
+              any are missing.
+            </p>
+            <div className="space-y-3">
+              <label className="ha-card p-3 block">
+                <span className="ha-stat-label">Make</span>
+                <input
+                  type="text"
+                  className="mt-2 w-full text-sm"
+                  value={vehicleDraft.vehicle_make}
+                  disabled={vehicleSaving}
+                  onChange={(e) =>
+                    setVehicleDraft((d) => ({ ...d, vehicle_make: e.target.value }))
+                  }
+                  placeholder="Toyota"
+                  data-testid="settings-vehicle-make-input"
+                />
+              </label>
+              <label className="ha-card p-3 block">
+                <span className="ha-stat-label">Model</span>
+                <input
+                  type="text"
+                  className="mt-2 w-full text-sm"
+                  value={vehicleDraft.vehicle_model}
+                  disabled={vehicleSaving}
+                  onChange={(e) =>
+                    setVehicleDraft((d) => ({ ...d, vehicle_model: e.target.value }))
+                  }
+                  placeholder="Prius"
+                  data-testid="settings-vehicle-model-input"
+                />
+              </label>
+              <label className="ha-card p-3 block">
+                <span className="ha-stat-label">Year</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="1900"
+                  max="2100"
+                  className="mt-2 w-full text-sm"
+                  value={vehicleDraft.vehicle_year}
+                  disabled={vehicleSaving}
+                  onChange={(e) =>
+                    setVehicleDraft((d) => ({ ...d, vehicle_year: e.target.value }))
+                  }
+                  placeholder="2020"
+                  data-testid="settings-vehicle-year-input"
+                />
+              </label>
+              <label className="ha-card p-3 block">
+                <span className="ha-stat-label">License plate</span>
+                <input
+                  type="text"
+                  className="mt-2 w-full text-sm"
+                  value={vehicleDraft.license_plate}
+                  disabled={vehicleSaving}
+                  onChange={(e) =>
+                    setVehicleDraft((d) => ({ ...d, license_plate: e.target.value }))
+                  }
+                  placeholder="ABC-1234"
+                  data-testid="settings-license-plate-input"
+                />
+              </label>
+              <label className="ha-card p-3 block">
+                <span className="ha-stat-label">Insurance policy number</span>
+                <input
+                  type="text"
+                  className="mt-2 w-full text-sm"
+                  value={vehicleDraft.insurance_policy}
+                  disabled={vehicleSaving}
+                  onChange={(e) =>
+                    setVehicleDraft((d) => ({ ...d, insurance_policy: e.target.value }))
+                  }
+                  placeholder="INS-XXXX-YYYY"
+                  data-testid="settings-insurance-policy-input"
+                />
+              </label>
+              <Field
+                label="Driver license number (from registration)"
+                value={accountProfile?.license_no || '—'}
+                testId="settings-license-no-readonly"
+              />
+              <Field
+                label="Insurance expiry (ops reviewed)"
+                value={accountProfile?.insurance_expires_at ? formatSeenAt(accountProfile.insurance_expires_at) : 'Manual operations required'}
+                testId="settings-insurance-expiry-readonly"
+              />
+              <Field
+                label="Vehicle readiness (ops reviewed)"
+                value={accountProfile?.vehicle_ready ? 'Ready' : 'Manual operations required'}
+                testId="settings-vehicle-ready-readonly"
+              />
+              {vehicleError ? (
+                <p className="text-xs" style={{ color: 'var(--ha-red, #fca5a5)' }} data-testid="settings-vehicle-error">
+                  {vehicleError}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                className="ha-btn ha-btn--primary"
+                disabled={vehicleSaving}
+                onClick={saveVehicle}
+                data-testid="settings-vehicle-save-btn"
+              >
+                {vehicleSaving ? 'Saving…' : 'Save vehicle & documents'}
+              </button>
+              {vehicleSaved ? (
+                <p className="text-xs" style={{ color: 'var(--ha-green)' }} data-testid="settings-vehicle-saved">
+                  Vehicle &amp; documents saved. Open the cockpit to re-run the readiness check.
+                </p>
+              ) : null}
+              <p className="text-xs ha-truth-note">
+                License number is locked at registration. Insurance expiry and vehicle readiness are
+                operations-reviewed fields; saving this form does not approve the vehicle by itself.
               </p>
             </div>
           </section>
@@ -535,6 +731,11 @@ export default function DriverSettings() {
               <li className="ha-list-item">
                 <Link to="/driver/trips" className="text-sm font-medium" style={{ color: 'var(--ha-green)' }}>
                   Trips &amp; audit receipts →
+                </Link>
+              </li>
+              <li className="ha-list-item">
+                <Link to="/driver/help" className="text-sm font-medium" style={{ color: 'var(--ha-green)' }} data-testid="settings-help-link">
+                  Help &amp; support →
                 </Link>
               </li>
             </ul>

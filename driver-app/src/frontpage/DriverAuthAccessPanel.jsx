@@ -7,6 +7,7 @@ export default function DriverAuthAccessPanel({
   formData,
   errors,
   error,
+  sessionNotice,
   showSuccess,
   isLoading,
   onInputChange,
@@ -17,18 +18,23 @@ export default function DriverAuthAccessPanel({
 }) {
   const submitLabel = isLoading
     ? mode === 'signin'
-      ? 'Signing In...'
-      : 'Creating Account...'
+      ? 'Checking session...'
+      : 'Creating access...'
     : mode === 'signin'
-      ? 'Sign In'
+      ? 'Sign in to cockpit'
       : 'Create Driver Account'
 
   return (
     <section className="dp-auth" id="access" data-testid="driver-auth-panel">
       <div className="dp-auth__intro">
         <p className="dp-eyebrow">Driver access</p>
-        <h2>Sign in or create your driver account</h2>
-        <p>Continue into the map-first cockpit after authentication.</p>
+        <h2>Open the closed-beta cockpit</h2>
+        <p>Sign in, confirm readiness, and continue into the driver operating surface.</p>
+        <div className="dp-auth-proof-row" aria-label="Closed beta operating boundaries">
+          <span>Closed beta</span>
+          <span>Manual readiness</span>
+          <span>Recorded obligations</span>
+        </div>
         {import.meta.env.DEV && ALLOW_OFFLINE_MOCK && (
           <p className="dp-auth__dev-note" data-testid="driver-auth-dev-note">
             Dev: offline mock login may be available when the backend is unreachable.
@@ -62,8 +68,14 @@ export default function DriverAuthAccessPanel({
           </div>
         )}
 
+        {sessionNotice && (
+          <div className="dp-auth-alert dp-auth-alert--info" data-testid="auth-session-notice">
+            {sessionNotice}
+          </div>
+        )}
+
         {(errors.general || error) && (
-          <div className="dp-auth-alert dp-auth-alert--error">
+          <div className="dp-auth-alert dp-auth-alert--error" data-testid="auth-error-message">
             {errors.general || error}
           </div>
         )}

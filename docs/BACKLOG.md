@@ -7,7 +7,7 @@
 Authoritative planning snapshot: `docs/HALFAPP_COMPREHENSIVE_PROGRAM_REPORT_03.md`  
 Operational truth: `docs/CURRENT_TRUTH.md`
 
-This backlog preserves the active product spine: `backend`, `driver-app`, and `docs/RIDE_LIFECYCLE_CONTRACT.md`. Tickets below are **classified against code and proof** as of full backend pytest green (**253+ passed**, one command; latest run **254 passed**).
+This backlog preserves the active product spine: `backend`, `driver-app`, and `docs/RIDE_LIFECYCLE_CONTRACT.md`. Tickets below are **classified against code and proof** as of full backend pytest green (`383 passed, 9 skipped` on 2026-05-25; see `docs/BACKEND_PYTEST_DRIFT_CLOSURE_01.md`).
 
 ---
 
@@ -35,7 +35,7 @@ Agents must **not** rebuild these lanes unless a new order explicitly rescopes t
 |--------|----------------|------------------|
 | **1.1** Quarantine legacy UI | **DONE_PROVEN** | `frontend/README.md` inactive; active UI `driver-app/` only |
 | **1.2** Production build guardrails | **DONE_PROVEN** | `driver-app/scripts/assert-prod-truth.mjs` + `prebuild`; `npm run build` rejects mock/guard bypass in prod |
-| **1.3** Lock contract drift | **PARTIAL** | `backend/scripts/print_openapi_driver_rides.py` + lifecycle tests; **no** CI snapshot gate that fails on OpenAPI drift |
+| **1.3** Lock contract drift | **DONE_PROVEN** | `backend/scripts/print_openapi_driver_rides.py` + lifecycle tests + `tests/test_openapi_surface_does_not_drift.py` snapshot gate |
 | **2.1** Alembic wiring | **DONE_PROVEN** | `backend/alembic/`; startup `run_migrations` in `main.py`; `tests/test_v01_foundation.py` |
 | **2.2** Initial schema migration | **DONE_PROVEN** | `0001`–`0015` revisions; fresh DB via `alembic upgrade head` |
 | **2.3** Remove runtime schema patches | **PARTIAL** | Alembic is primary; `ensure_ride_lifecycle_columns()` still in `database.py` (legacy SQLite safety) |
@@ -61,21 +61,22 @@ See **`docs/HALFAPP_DRIVER_PRODUCT_COMPLETION_ROADMAP_01.md`** for ordered slice
 | Item | Why | Proof target |
 |------|-----|--------------|
 | **Internal owner test mode + runbook** | Owner-car validation without beta ops | `INTERNAL_OWNER_TEST_MODE_01` in product completion roadmap |
-| **OSRM runtime proof** (Docker/VPS) | Code path GO; runtime **NO_GO** | `docs/SELF_HOSTED_ROUTING_PROOF_V0_1_STATUS.md`, `docs/RUNTIME_PROOF_PROCEDURE.md` |
-| **Postgres claim-race CI** | Manual proof exists; need repeatable CI + PG migrations | `docs/HALFAPP_POSTGRES_CLAIM_RACE_PROOF_01_REPORT.md`; CI matrix on PostgreSQL |
+| ~~OSRM runtime proof~~ | **DONE** — runtime GO on this host; `used_fallback=false` on 3 Portland routes | `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md`, `docs/SELF_HOSTED_ROUTING_PROOF_V0_3_REPORT.md` |
+| ~~Postgres claim-race CI / local proof~~ | **DONE** — fresh PostgreSQL 16 Alembic + claim-race proof passed | `docs/P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md`, `docs/P0_G7_ALEMBIC_POSTGRES_PROOF_01.md` |
 | **Dossier Path A vs B decision** | Dual spine risk (document only) | `docs/HALFAPP_DOSSIER_SPINE_RECONCILIATION_01.md` — keep **PARALLEL_NOT_WIRED** for driver app |
 
 ### P1 (hardening + remaining driver surfaces)
 
 | Item | Notes |
 |------|-------|
-| Profile / settings shell | Vehicle, contact, session panel — see roadmap slice 4 |
-| Notifications product UI | Backend wired; chrome and demo-tab cleanup — slice 5 |
-| Cockpit session resilience | Active-ride recovery, stale presence — slice 6 |
-| Settlement / calculation copy lock | Align trips/earnings with audit obligation language — slice 9 |
-| Token revocation / refresh design | **NOT IMPLEMENTED** — design only |
-| CORS hardening | Wildcard forbidden; production explicit origins — see `test_production_guards.py` |
-| Contract drift CI (Ticket 1.3) | OpenAPI snapshot fail-on-drift |
+| ~~Profile / settings shell~~ | **DONE** — `docs/PROFILE_SETTINGS_SHELL_01.md`; vehicle/contact/session/preferences all via API; AppShellLayout; no mock data |
+| ~~Notifications product UI~~ | **DONE** — `docs/NOTIFICATIONS_PRODUCT_UI_01.md`; backend-only, DEV-gated demo tab, AppShellLayout; stale heading E2E fixed |
+| ~~Cockpit session resilience~~ | **DONE (code) / TODO (E2E)** — `docs/COCKPIT_SESSION_RESILIENCE_01.md`; backend + frontend shipped; live-stack E2E run is owner-runnable |
+| ~~Driver closed-beta readiness shaping~~ | **DONE** — `docs/DRIVER_APP_REAL_APP_SHAPING_PASS_01.md`, `docs/DRIVER_READINESS_OPERATOR_DATA_PASS_01.md`; DriverReadinessV1, go-online gate, ops-owned vehicle readiness + insurance expiry, ride offer expired/conflict states, honest completion receipt; `npm test` 159 passed; `npm run build` passed |
+| ~~Settlement / calculation copy lock~~ | **DONE** — `docs/TRIPS_EARNINGS_POLISH_01.md`; delivery vocabulary aligned across trips/earnings/chart; 150 npm tests pass |
+| ~~Token revocation / refresh design~~ | **DONE** — `docs/TOKEN_SESSION_SAFETY_01.md`; migration 0016, rotation, logout-all; `test_auth_refresh_rotation.py` |
+| ~~CORS hardening + observability~~ | **DONE** — `docs/DEPLOY_CORS_OBSERVABILITY_01.md`; CORS hardened; structured request logging middleware with `driver_id`/`ride_id` correlation |
+| ~~Contract drift CI (Ticket 1.3)~~ | **DONE** — `docs/OPENAPI_TRUTH_SYNC_01.md`; `test_openapi_surface_does_not_drift.py` in `truth-and-drift` CI job |
 
 ### P2 (deferred product)
 
@@ -104,9 +105,11 @@ Goal: make truth discipline hard to violate.
 
 - Evidence: `driver-app/scripts/assert-prod-truth.mjs`, `driver-app/package.json` `prebuild`.
 
-#### Ticket 1.3: Lock Contract Drift — **PARTIAL**
+#### Ticket 1.3: Lock Contract Drift — **DONE_PROVEN**
 
-- Remaining: CI step that fails when OpenAPI lifecycle paths drift from `docs/RIDE_LIFECYCLE_CONTRACT.md`.
+- `backend/tests/test_openapi_surface_does_not_drift.py` — snapshot at `tests/snapshots/openapi_paths.json`; runs in CI `truth-and-drift` job; fails on path set change.
+- Dossier paths (`/supply`, `/demand`, `/trip`) explicitly excluded from snapshot when `HALFAPP_DOSSIER_SPINE_ENABLED` unset.
+- Note: snapshot compares path set, not full RIDE_LIFECYCLE_CONTRACT schema — deep schema alignment is a P1-hardening item.
 
 ### Epic 2: Introduce Migration Discipline
 

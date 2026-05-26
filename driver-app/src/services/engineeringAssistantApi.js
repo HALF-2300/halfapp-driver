@@ -52,14 +52,16 @@ export async function fetchAssistantStatus(token) {
 
 /**
  * @param {string} token
- * @param {{ messages: Array<{ role: string, content: string }>, prompt: string }} body
+ * @param {{ messages: Array<{ role: string, content: string }>, prompt: string, signal?: AbortSignal }} body
  * @returns {Promise<{ reply: string, provider: string, model: string }>}
  */
 export async function sendAssistantChat(token, body) {
+  const { signal, ...rest } = body
   const res = await fetch(resolveEngineeringAssistantUrl('/chat'), {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify(body),
+    body: JSON.stringify(rest),
+    signal,
   })
   if (!res.ok) {
     let detail = `Assistant chat failed (${res.status})`

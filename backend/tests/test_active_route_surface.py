@@ -2,6 +2,14 @@
 
 Dormant route modules may exist in the repository, but they are not active
 product surface unless ``backend/main.py`` includes them.
+
+When routes change in ``backend/main.py``, update ``ACTIVE_PATHS``:
+
+  HALFAPP_DOSSIER_SPINE_ENABLED=0 py -3.11 scripts/print_active_routes.py
+
+Merge any new paths into ``ACTIVE_PATHS`` (keep sorted). Then:
+
+  py -3.11 -m pytest tests/test_active_route_surface.py -q
 """
 
 from __future__ import annotations
@@ -17,7 +25,10 @@ ACTIVE_PATHS = {
     "/healthz",
     # auth
     "/auth/register",
+    "/auth/rider/register",
     "/auth/login",
+    "/auth/admin/login",
+    "/auth/rider/login",
     "/auth/refresh",
     "/auth/forgot-password",
     "/auth/reset-password",
@@ -27,7 +38,11 @@ ACTIVE_PATHS = {
     # admin — driver approval + rides + CRL curation
     "/admin/drivers",
     "/admin/drivers/{driver_id}/approval",
+    "/admin/drivers/{driver_id}/readiness",
     "/admin/rides",
+    "/admin/rides/{ride_id}",
+    "/admin/rides/{ride_id}/assign",
+    "/admin/rides/{ride_id}/cancel",
     "/admin/rides/{ride_id}/notes",
     "/admin/crl/overview",
     "/admin/crl/events",
@@ -53,6 +68,7 @@ ACTIVE_PATHS = {
     "/drivers/me/payment-reconciliation",
     "/drivers/me/payment-executions",
     "/drivers/me/payouts",
+    "/drivers/me/ride-payments",
     "/drivers/heartbeat",
     "/drivers/my-rides",
     "/drivers/my-rides/export",
@@ -72,6 +88,7 @@ ACTIVE_PATHS = {
     "/drivers/rides/{ride_id}/settlement",
     "/drivers/rides/{ride_id}/audit",
     "/drivers/rides/{ride_id}/messages",
+    "/drivers/rides/{ride_id}/payment",
     "/drivers/rides/{ride_id}/navigation",
     "/drivers/rides/{ride_id}/support-ticket",
     "/drivers/rides/{ride_id}/hide",
@@ -97,8 +114,11 @@ ACTIVE_PATHS = {
     "/internal/test-login",
     # rider rides (minimal rider API)
     "/rides/",
+    "/rides/estimate",
+    "/rides/my-rides",
     "/rides/{ride_id}",
     "/rides/{ride_id}/cancel",
+    "/rides/{ride_id}/payment",
     "/rides/{ride_id}/stream",
     "/rides/{ride_id}/action",
     # notifications
@@ -116,7 +136,11 @@ ACTIVE_PATHS = {
 MOUNTED_ADMIN_PATHS = {
     "/admin/drivers",
     "/admin/drivers/{driver_id}/approval",
+    "/admin/drivers/{driver_id}/readiness",
     "/admin/rides",
+    "/admin/rides/{ride_id}",
+    "/admin/rides/{ride_id}/assign",
+    "/admin/rides/{ride_id}/cancel",
     "/admin/rides/{ride_id}/notes",
     "/admin/crl/overview",
     "/admin/crl/events",

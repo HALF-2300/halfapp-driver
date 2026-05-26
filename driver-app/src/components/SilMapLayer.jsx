@@ -36,16 +36,31 @@ export default function SilMapLayer({ map, enabled, showBusy, showSlow }) {
     const busy = busyRef.current
     const slow = slowRef.current
 
-    if (enabled && showBusy) busy.addTo(map)
-    else {
+    // leaflet.heat reads map._panes.overlayPane synchronously inside addTo.
+    // During page reload or pre-paint commit cycles the pane may not exist yet,
+    // which throws "Cannot read properties of undefined (reading 'appendChild')"
+    // and unmounts the whole cockpit into ErrorBoundary. Guard symmetrically with
+    // removeFrom — heat is a non-essential overlay.
+    if (enabled && showBusy) {
+      try {
+        busy.addTo(map)
+      } catch {
+        /* map panes not ready; heat is optional */
+      }
+    } else {
       try {
         busy.removeFrom(map)
       } catch {
         /* detached */
       }
     }
-    if (enabled && showSlow) slow.addTo(map)
-    else {
+    if (enabled && showSlow) {
+      try {
+        slow.addTo(map)
+      } catch {
+        /* map panes not ready; heat is optional */
+      }
+    } else {
       try {
         slow.removeFrom(map)
       } catch {

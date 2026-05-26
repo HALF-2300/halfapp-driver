@@ -28,8 +28,25 @@ async function ensureTripPricingVisible(page: import('@playwright/test').Page) {
   await expect(summary).toBeVisible()
 }
 
+async function waitForIncomingRide(page: import('@playwright/test').Page, rideId: number) {
+  const target = page.locator(`[data-testid="sheet-request-incoming"][data-ride-id="${rideId}"]`)
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (await target.isVisible().catch(() => false)) return target
+    const visibleIncoming = page.getByTestId('sheet-request-incoming')
+    const visibleRideId = await visibleIncoming.getAttribute('data-ride-id').catch(() => null)
+    if (visibleRideId && visibleRideId !== String(rideId)) {
+      await page.getByTestId('decline-ride-btn').click()
+      await page.waitForTimeout(500)
+    } else {
+      await page.waitForTimeout(500)
+    }
+  }
+  await expect(target).toBeVisible({ timeout: 15_000 })
+  return target
+}
+
 test.describe('RIDE_FLOW_UI_PROOF_V0_2', () => {
-  test('rider request → driver accept → start → complete with locked payout summary', async ({
+  test('rider request → driver accept → start → complete with locked obligation receipt', async ({
     page,
     request,
   }) => {
@@ -91,14 +108,7 @@ test.describe('RIDE_FLOW_UI_PROOF_V0_2', () => {
     const rideId = created.ride.id as number
     expect(created.ride.status).toBe('requested')
 
-    await page.waitForResponse(
-      (res) =>
-        res.url().includes('/drivers/available-rides') &&
-        res.request().method() === 'GET' &&
-        res.status() === 200,
-      { timeout: 15_000 }
-    )
-    await expect(page.getByTestId('sheet-request-incoming')).toBeVisible({ timeout: 15_000 })
+    const incomingRide = await waitForIncomingRide(page, rideId)
     await ensureTripPricingVisible(page)
     await expect(page.getByTestId('rider-platform-service-fee')).toContainText('$1.50')
     await expect(page.getByTestId('open-pickup-google-maps')).toBeVisible()
@@ -115,7 +125,7 @@ test.describe('RIDE_FLOW_UI_PROOF_V0_2', () => {
         res.status() === 200,
       { timeout: 30_000 }
     )
-    await page.getByTestId('accept-ride-btn').click()
+    await incomingRide.getByTestId('accept-ride-btn').click()
     await acceptResponse
     await expect(page.getByTestId('sheet-accepted_to_pickup')).toBeVisible({ timeout: 20_000 })
     await ensureTripPricingVisible(page)
@@ -155,16 +165,16 @@ test.describe('RIDE_FLOW_UI_PROOF_V0_2', () => {
         res.status() === 200,
       { timeout: 20_000 }
     )
-    const completedSummary = page.getByTestId('ride-flow-completed-summary')
-    await expect(completedSummary).toBeVisible({ timeout: 20_000 })
-    await expect(completedSummary.getByTestId('pricing-financial-locked')).toBeVisible()
-    await expect(completedSummary.getByTestId('rider-ride-fare')).toBeVisible()
-    await expect(completedSummary.getByTestId('rider-platform-commission')).toBeVisible()
-    await expect(completedSummary.getByTestId('rider-platform-service-fee')).toContainText('$1.50')
-    await expect(completedSummary.getByTestId('driver-total-payout')).toBeVisible()
+    const completedReceipt = page.getByTestId('completed-flash')
+    await expect(completedReceipt).toBeVisible({ timeout: 20_000 })
+    await expect(completedReceipt.getByTestId('completion-receipt-card')).toBeVisible()
+    await expect(completedReceipt.getByTestId('completion-recorded-obligation')).toBeVisible()
+    await expect(completedReceipt.getByTestId('completion-receipt-manual-review')).toContainText(
+      /Payout not executed|Manual review required/
+    )
 
     fs.mkdirSync(screenshotDir, { recursive: true })
-    const screenshotPath = path.join(screenshotDir, 'completed-payout-summary.png')
+    const screenshotPath = path.join(screenshotDir, 'completed-obligation-receipt.png')
     await page.screenshot({ path: screenshotPath, fullPage: true })
     await expect(fs.existsSync(screenshotPath)).toBeTruthy()
 

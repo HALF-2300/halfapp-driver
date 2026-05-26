@@ -58,7 +58,7 @@ Prioritized for **product completion**, not beta ops.
 | **Trips** | List filters (date/status); consistent “calculation record” labels vs raw “payout” in row chrome | Trips screen matches audit/earnings language; deep links stable |
 | **Earnings** | No charts wired (`EarningsChart.jsx` dormant); period breakdown thin | Owner can validate totals against audit for any trip |
 | **Audit / receipt** | Primary narrative could surface top 3 lifecycle events above fold | One-screen “what happened on this trip” without opening technical proof |
-| **Route truth** | OSRM runtime **NO_GO** — UI honest but distances may be straight-line | Runtime proof GO before claiming road-network routing |
+| **Route truth** | OSRM runtime **GO** on this host — UI must still label fallback when OSRM is down | Hosted monitoring/SLA before public routing claims |
 | **Profile / settings** | No dedicated **Settings** route; mixed tabs; no session/device panel | Vehicle + contact + **session info** + app preferences in one coherent shell (`AppShellLayout`) |
 | **Notifications** | Light theme unlike cockpit; no mark-read if backend supports; messages are demo | Notifications match product chrome; backend-only or explicit empty |
 | **Offline / online** | Background tab / network loss behavior not product-tested | Documented behavior: heartbeat failure, go-offline guards, “finish ride before offline” |
@@ -91,8 +91,8 @@ Prioritized for **product completion**, not beta ops.
 |------|---------|------------------------------------------|----------------------|-------------------|
 | **Auth / RBAC** | GO | Maintain | — | — |
 | **Lifecycle + claim lock (SQLite)** | GO | Maintain | — | — |
-| **Postgres claim-race proof** | Manual GO report; Alembic `PRAGMA` on PG **fails** | CI matrix on Postgres + migration fix | Yes | Yes |
-| **OSRM runtime** | NO_GO (code GO) | Docker/VPS proof per `docs/RUNTIME_PROOF_PROCEDURE.md` | Yes (honesty) | Yes (distance-priced trust) |
+| **Postgres claim-race proof** | **GO** — fresh PostgreSQL 16 Alembic + claim-race proof passed | Keep CI proof green | Yes | Yes |
+| **OSRM runtime** | **GO** on this host | Hosted process monitoring before public routing claims | Yes (honesty) | Yes (distance-priced trust) |
 | **Token refresh / revocation** | NOT IMPLEMENTED | Design + MVP (logout all, rotation) | Yes | Yes |
 | **CORS / production guards** | PARTIAL | Explicit origins documented per deploy | Yes | Yes |
 | **SECRET_KEY guard** | GO | Ops sets real secret in deploy | Yes | Yes |
@@ -108,8 +108,8 @@ Prioritized for **product completion**, not beta ops.
 
 1. **Product surfaces complete** — cockpit, trips, earnings, audit, route truth, profile/settings, notifications, offline/online behavior meet the completion bars above.
 2. **Internal owner-car program** — repeatable runbook with simulation + rider API; no reliance on Playwright-only for day-to-day testing.
-3. **Postgres claim-race** — proven on CI Postgres, not SQLite-only.
-4. **OSRM runtime** — GO or explicit product positioning remains “estimate/fallback only.”
+3. **Postgres claim-race** — proven on PostgreSQL and kept green in CI.
+4. **OSRM runtime** — GO on this host; hosted deployment must preserve fallback honesty and monitoring.
 5. **Session safety** — refresh/revocation MVP for lost devices.
 6. **Deploy hardening** — CORS, secrets, logging, on-call basics.
 7. **Support / legal** — out of engineering scope here; explicitly not started.
@@ -145,14 +145,11 @@ Product completion and internal testing only. **No beta operations work.**
 
 ### 2. `OSRM_RUNTIME_PROOF_01` — Docker/VPS runtime GO
 
-- Execute `docs/RUNTIME_PROOF_PROCEDURE.md` on Docker-capable host.
-- **Done when:** `SELF_HOSTED_ROUTING_PROOF_V0_1_STATUS` runtime **GO**; proof script shows `osrm_self_hosted`, `used_fallback=false`.
+- **DONE 2026-05-25:** `docs/P0_G2_OSRM_RUNTIME_PROOF_01.md`; proof script shows `osrm_self_hosted`, `used_fallback=false`.
 
 ### 3. `POSTGRES_CLAIM_RACE_CI_01` — Postgres migrations + CI matrix
 
-- Fix Alembic PostgreSQL path (remove SQLite `PRAGMA` on PG upgrades).
-- Run `test_ride_claim_lock_concurrency.py` on `DATABASE_URL=postgresql://...` in CI.
-- **Done when:** Documented CI green; `CURRENT_TRUTH` Postgres row **GO**.
+- **DONE 2026-05-25:** `docs/P0_G1_POSTGRES_CLAIM_RACE_REPORT_02.md`, `docs/P0_G7_ALEMBIC_POSTGRES_PROOF_01.md`; `CURRENT_TRUTH` Postgres rows **GO**.
 
 ### 4. `PROFILE_SETTINGS_SHELL_01` — Profile + settings product surface
 

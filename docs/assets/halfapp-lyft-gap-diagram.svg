@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" role="img" aria-label="HalfApp today versus Lyft-like product">
+  <defs>
+    <style>
+      .title { font: 600 13px system-ui, sans-serif; fill: #e4e4e4; }
+      .box-title { font: 600 12px system-ui, sans-serif; fill: #e4e4e4; }
+      .box-sub { font: 11px system-ui, sans-serif; fill: #e4e4e48d; }
+      .gap-label { font: 600 11px system-ui, sans-serif; }
+      .legend { font: 10px system-ui, sans-serif; fill: #e4e4e48d; }
+      .panel { fill: #181818; stroke: #e4e4e433; stroke-width: 1; }
+      .go { fill: #3fa26633; stroke: #3fa2668f; stroke-width: 1.5; }
+      .partial { fill: #e4e4e41e; stroke: #599ce7; stroke-width: 1.5; }
+      .missing { fill: #b8004933; stroke: #fc6b838f; stroke-width: 1.5; }
+      .inactive { fill: #e4e4e40a; stroke: #e4e4e41f; stroke-width: 1.5; }
+    </style>
+  </defs>
+  <rect width="720" height="400" fill="#141414"/>
+
+  <!-- HalfApp today -->
+  <rect class="panel" x="16" y="16" width="268" height="248" rx="8"/>
+  <text class="title" x="150" y="36" text-anchor="middle">HalfApp today</text>
+  <rect class="go" x="28" y="56" width="244" height="52" rx="6"/>
+  <text class="box-title" x="38" y="76">driver-app</text>
+  <text class="box-sub" x="38" y="94">Active driver portal</text>
+  <rect class="partial" x="28" y="120" width="244" height="52" rx="6"/>
+  <text class="box-title" x="38" y="140">Rider API only</text>
+  <text class="box-sub" x="38" y="158">POST /rides/ · no rider UI</text>
+  <rect class="inactive" x="28" y="184" width="244" height="52" rx="6"/>
+  <text class="box-title" x="38" y="204">frontend/</text>
+  <text class="box-sub" x="38" y="222">Legacy shell · not wired</text>
+
+  <!-- Lyft-like product -->
+  <rect class="panel" x="436" y="16" width="268" height="310" rx="8"/>
+  <text class="title" x="570" y="36" text-anchor="middle">Lyft-like product</text>
+  <rect class="missing" x="448" y="56" width="244" height="52" rx="6"/>
+  <text class="box-title" x="458" y="76">Rider app / site</text>
+  <text class="box-sub" x="458" y="94">Not shipped · largest gap</text>
+  <rect class="go" x="448" y="120" width="244" height="52" rx="6"/>
+  <text class="box-title" x="458" y="140">Driver app</text>
+  <text class="box-sub" x="458" y="158">Covered by driver-app</text>
+  <rect class="partial" x="448" y="184" width="244" height="52" rx="6"/>
+  <text class="box-title" x="458" y="204">Payments</text>
+  <text class="box-sub" x="458" y="222">Backend partial · no checkout UX</text>
+  <rect class="missing" x="448" y="248" width="244" height="52" rx="6"/>
+  <text class="box-title" x="458" y="268">Ops / admin</text>
+  <text class="box-sub" x="458" y="286">UI shell · routes dormant</text>
+
+  <!-- GO arrow -->
+  <path d="M 272 82 C 340 82, 380 146, 448 146" fill="none" stroke="#3fa266" stroke-width="2.5"/>
+  <polygon points="448,146 440,142 440,150" fill="#3fa266"/>
+  <text class="gap-label" x="360" y="108" text-anchor="middle" fill="#3fa266">GO</text>
+
+  <!-- missing rider UI -->
+  <path d="M 448 82 C 380 82, 340 146, 272 146" fill="none" stroke="#fc6b83" stroke-width="2" stroke-dasharray="6 4"/>
+  <polygon points="272,146 280,142 280,150" fill="#fc6b83"/>
+  <text class="gap-label" x="360" y="128" text-anchor="middle" fill="#fc6b83">missing</text>
+
+  <!-- not wired -->
+  <line x1="272" y1="210" x2="320" y2="210" stroke="#e4e4e45e" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text class="box-sub" x="324" y="206">not wired</text>
+
+  <text class="box-sub" x="360" y="210" text-anchor="middle">no surface</text>
+  <text class="box-sub" x="360" y="274" text-anchor="middle">no surface</text>
+
+  <!-- Legend -->
+  <rect class="go" x="16" y="352" width="12" height="12" rx="2"/>
+  <text class="legend" x="34" y="362">GO</text>
+  <rect class="partial" x="88" y="352" width="12" height="12" rx="2"/>
+  <text class="legend" x="106" y="362">PARTIAL</text>
+  <rect class="missing" x="168" y="352" width="12" height="12" rx="2"/>
+  <text class="legend" x="186" y="362">MISSING</text>
+  <rect class="inactive" x="248" y="352" width="12" height="12" rx="2"/>
+  <text class="legend" x="266" y="362">INACTIVE</text>
+</svg>

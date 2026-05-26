@@ -26,7 +26,7 @@ export default function StreetIntelligencePanel({
 
   const previewRoute = useCallback(async () => {
     if (!devicePosition || !activeRide?.pickup || !activeRide?.dropoff) {
-      setQuoteError('Need GPS and an active ride to preview a route.')
+      setQuoteError('Need GPS and an active job to preview a route.')
       return
     }
     setLoadingQuote(true)

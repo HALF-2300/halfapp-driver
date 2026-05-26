@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
   // on the initial /auth/me probe leaves the submit button disabled for ~1.5s after
   // logout in the offline-mock dev lane.
   const [isLoading, setIsLoading] = useState(false)
+  const [hasCheckedSession, setHasCheckedSession] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export function AuthProvider({ children }) {
           } else {
             driverAPI.logout()
             setUser(null)
+            setError('This session is not for a driver account. Sign in with a driver profile.')
           }
         }
       } catch (err) {
@@ -35,6 +37,9 @@ export function AuthProvider({ children }) {
         console.error('Auth check failed:', err)
         driverAPI.logout()
         setUser(null)
+        setError('Session expired or invalid. Sign in again to continue.')
+      } finally {
+        if (!cancelled) setHasCheckedSession(true)
       }
     }
 
@@ -118,7 +123,8 @@ export function AuthProvider({ children }) {
     register,
     logout,
     clearError,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    hasCheckedSession,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

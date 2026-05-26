@@ -201,11 +201,11 @@ export default function TripAuditReceipt() {
             ))}
           </div>
 
-          <Section title="Ride" testId="trip-audit-ride">
+          <Section title="Job" testId="trip-audit-ride">
             <div className="mb-2">
               <TestRideLabel lifecycleReason={audit.lifecycle_reason} testId="trip-audit-test-label" />
             </div>
-            <Row label="Ride ID" value={audit.ride_id} testId="trip-audit-ride-id" />
+            <Row label="Job ID" value={audit.ride_id} testId="trip-audit-ride-id" />
             <Row label="Status" value={audit.status} />
             <Row
               label="Financial locked"

@@ -30,7 +30,7 @@ const EarningsChart = memo(({ data = [] }) => {
 
   return (
     <div className="ha-card p-4" data-testid="earnings-chart">
-      <h3 className="ha-section-title text-sm mb-3">Recent trip earnings</h3>
+      <h3 className="ha-section-title text-sm mb-3">Recent job earnings</h3>
       <div className="flex items-end gap-2 h-40" role="img" aria-label="Recent earnings bars">
         {points.map((point) => (
           <div key={point.label} className="flex flex-1 flex-col items-center gap-1 min-w-0">

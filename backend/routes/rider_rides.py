@@ -23,10 +23,12 @@ from models.ride import Ride
 from models.user import UserRole
 from services.datetime_utils import utc_now_naive
 from routes.drivers import ride_to_view
+from schemas.payment import FareEstimateRequest, FareEstimateResponse, RidePaymentResponse, RidePaymentView
 from schemas.rider_rides import (
     RiderCancelBody,
     RiderRideCreate,
     RiderRideResponse,
+    RiderRidesListResponse,
 )
 from schemas.rides import RideActionRequest
 from services.ledger import record_ledger_entry
@@ -46,7 +48,16 @@ from services.routing_service import route as routing_route
 from services.auth_errors import auth_error_detail
 from services.rbac import AuthPrincipal, load_principal_user, require_role, resolve_principal_from_bearer
 from services.ride_dispatch_cascade import start_dispatch_for_ride
-from services.ride_pool_broadcast import POOL_EVENT_CANCELLED, POOL_EVENT_CREATED, emit_pool_delta
+from services.ride_auto_assign import auto_assign_enabled, try_auto_assign_ride
+from services.ride_pool_broadcast import POOL_EVENT_CANCELLED, POOL_EVENT_CREATED, POOL_EVENT_CLAIMED, emit_pool_delta
+from services.ride_payment import (
+    capture_payment_for_ride,
+    create_payment_for_ride,
+    estimate_fare_cents,
+    fail_payment_for_ride,
+    get_ride_payment,
+    payment_to_dict,
+)
 from services.transition_errors import invalid_state_transition_detail, target_status_for_action
 
 
@@ -141,6 +152,7 @@ def create_ride(
         origin=origin,
         destination=destination,
     )
+    create_payment_for_ride(db, ride)
     record_event(
         db,
         entity_type="ride",
@@ -149,16 +161,31 @@ def create_ride(
         actor_id=customer.id,
         payload={"source": "rider"},
     )
-    start_dispatch_for_ride(db, ride.id)
+    if auto_assign_enabled():
+        assigned = try_auto_assign_ride(db, ride.id)
+        if assigned:
+            from services.ride_payment import authorize_payment_for_ride
+
+            authorize_payment_for_ride(db, assigned)
+    else:
+        start_dispatch_for_ride(db, ride.id)
     db.commit()
     db.refresh(ride)
     created_view = ride_to_view(ride, db=db)
-    emit_pool_delta(
-        event=POOL_EVENT_CREATED,
-        ride_id=ride.id,
-        ride=created_view.model_dump(mode="json"),
-        removed=False,
-    )
+    if ride.driver_id is not None:
+        emit_pool_delta(
+            event=POOL_EVENT_CLAIMED,
+            ride_id=ride.id,
+            ride=None,
+            removed=True,
+        )
+    else:
+        emit_pool_delta(
+            event=POOL_EVENT_CREATED,
+            ride_id=ride.id,
+            ride=created_view.model_dump(mode="json"),
+            removed=False,
+        )
     return {
         "message": f"Ride {ride.id} created",
         "ride": created_view,
@@ -209,6 +236,7 @@ def cancel_ride(
         actor="customer",
         actor_id=customer.id,
     )
+    fail_payment_for_ride(db, ride)
     if ride.driver_id is not None:
         record_ledger_entry(
             db,
@@ -232,6 +260,82 @@ def cancel_ride(
     return {
         "message": f"Ride {ride_id} cancelled",
         "ride": ride_to_view(ride, db=db),
+    }
+
+
+@router.post("/estimate", response_model=FareEstimateResponse)
+def estimate_fare(
+    body: FareEstimateRequest,
+    customer: AuthPrincipal = Depends(RIDER_ACCESS),
+    db: Session = Depends(get_db),
+):
+    _ = load_principal_user(db, customer)
+    origin = None
+    destination = None
+    distance_km = body.distance_km
+    duration_minutes = body.duration_minutes or 0
+    if (
+        body.pickup_latitude is not None
+        and body.pickup_longitude is not None
+        and body.dropoff_latitude is not None
+        and body.dropoff_longitude is not None
+    ):
+        origin = (body.pickup_latitude, body.pickup_longitude)
+        destination = (body.dropoff_latitude, body.dropoff_longitude)
+        if distance_km is None:
+            estimate = routing_route(origin, destination)
+            distance_km = estimate.distance_km
+            duration_minutes = estimate.duration_minutes
+    amount, driver_payout = estimate_fare_cents(
+        db,
+        distance_km=distance_km or 0.0,
+        duration_minutes=duration_minutes,
+    )
+    return FareEstimateResponse(
+        amount_cents=amount,
+        driver_payout_cents=driver_payout,
+        currency="USD",
+    )
+
+
+@router.get("/my-rides", response_model=RiderRidesListResponse, response_model_exclude_none=True)
+def list_my_rides(
+    customer: AuthPrincipal = Depends(RIDER_ACCESS),
+    db: Session = Depends(get_db),
+    limit: int = Query(default=30, ge=1, le=100),
+):
+    customer = load_principal_user(db, customer)
+    rides = (
+        db.query(Ride)
+        .filter(Ride.customer_id == customer.id)
+        .order_by(Ride.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return {
+        "message": f"{len(rides)} ride(s) for customer {customer.id}",
+        "rides": [ride_to_view(ride, db=db) for ride in rides],
+    }
+
+
+@router.get("/{ride_id}/payment", response_model=RidePaymentResponse)
+def get_ride_payment_for_rider(
+    ride_id: int,
+    customer: AuthPrincipal = Depends(RIDER_ACCESS),
+    db: Session = Depends(get_db),
+):
+    customer = load_principal_user(db, customer)
+    ride = db.query(Ride).filter(Ride.id == ride_id).first()
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride.customer_id != customer.id:
+        raise HTTPException(status_code=403, detail="Not your ride")
+    payment = get_ride_payment(db, ride_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    return {
+        "message": f"Payment for ride {ride_id}",
+        "payment": RidePaymentView.model_validate(payment_to_dict(payment)),
     }
 
 
@@ -267,6 +371,12 @@ async def stream_ride_status(
         raise HTTPException(status_code=403, detail="Not your ride")
 
     async def event_generator():
+        from services.rider_ride_stream import (
+            collect_rider_stream_events,
+            format_sse_data,
+            format_sse_event,
+        )
+
         last_status = None
         while True:
             if await request.is_disconnected():
@@ -276,10 +386,17 @@ async def stream_ride_status(
             if not latest:
                 break
             normalized_status = normalize_ride_status(latest.status).value
+            for event_name, payload in collect_rider_stream_events(
+                latest,
+                db,
+                ride_id=ride_id,
+                last_status=last_status,
+            ):
+                yield format_sse_event(event_name, payload)
+                if event_name == "status_change":
+                    yield format_sse_data(payload)
             if normalized_status != last_status:
                 last_status = normalized_status
-                payload = {"ride_id": ride_id, "status": normalized_status}
-                yield f"data: {json.dumps(payload)}\n\n"
             if normalized_status in {RideStatus.COMPLETED.value, RideStatus.CANCELLED.value}:
                 break
             await asyncio.sleep(2.0)

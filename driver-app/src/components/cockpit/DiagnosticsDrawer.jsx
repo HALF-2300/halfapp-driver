@@ -16,7 +16,7 @@ import { describeLegacyFareFields } from '../../utils/ridePricingDisplay.js'
 const SHOWCASE_PROOF_POINTS = [
   'Backend presence: live',
   'Marketplace truth: backend-owned',
-  'Ride visibility: audited',
+  'Job visibility: audited',
 ]
 
 export default function DiagnosticsDrawer({

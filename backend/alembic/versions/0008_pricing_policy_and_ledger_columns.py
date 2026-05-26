@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from alembic import op
 
+from db_migration_helpers import insert_seed_ignore, is_postgresql
+
 
 revision = "0008_pricing_policy_and_ledger_columns"
 down_revision = "0007_v01_pricing_map_foundation"
@@ -17,8 +19,7 @@ depends_on = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    conn.exec_driver_sql(
-        """
+    pricing_policies_sql = """
         CREATE TABLE IF NOT EXISTS pricing_policies (
             id TEXT PRIMARY KEY,
             market_id TEXT NOT NULL,
@@ -46,9 +47,12 @@ def upgrade() -> None:
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    )
-    conn.exec_driver_sql(
-        """
+    if is_postgresql(conn):
+        pricing_policies_sql = pricing_policies_sql.replace("DATETIME", "TIMESTAMP")
+    conn.exec_driver_sql(pricing_policies_sql)
+    insert_seed_ignore(
+        conn,
+        sqlite_sql="""
         INSERT OR IGNORE INTO pricing_policies (
             id, market_id, city_code, pricing_version, currency,
             base_fare_cents, per_mile_cents, per_minute_cents, minimum_ride_fare_cents,
@@ -64,7 +68,25 @@ def upgrade() -> None:
             0, 0, 0, 0,
             10000, 0, 1
         )
-        """
+        """,
+        postgresql_sql="""
+        INSERT INTO pricing_policies (
+            id, market_id, city_code, pricing_version, currency,
+            base_fare_cents, per_mile_cents, per_minute_cents, minimum_ride_fare_cents,
+            platform_service_fee_cents, commission_rate_bps, driver_share_bps,
+            wait_fee_per_minute_cents, wait_grace_period_minutes,
+            cancellation_fee_cents, city_fee_cents, accessibility_fee_cents, airport_fee_cents,
+            demand_multiplier_bps, traffic_aware_pricing, is_active
+        ) VALUES (
+            'us-launch-v0-1', 'US-DEFAULT', NULL, 'v0.1', 'USD',
+            500, 150, 25, 800,
+            150, 2000, 8000,
+            0, 2,
+            0, 0, 0, 0,
+            10000, false, true
+        )
+        ON CONFLICT (id) DO NOTHING
+        """,
     )
     for col, col_type in (
         ("pricing_policy_id", "TEXT"),
@@ -80,10 +102,16 @@ def upgrade() -> None:
         ("customer_total_cents", "INTEGER NOT NULL DEFAULT 0"),
         ("fare_locked_at", "DATETIME"),
     ):
-        try:
-            conn.exec_driver_sql(f"ALTER TABLE ride_pricing ADD COLUMN {col} {col_type}")
-        except Exception:
-            pass
+        if is_postgresql(conn):
+            col_type = col_type.replace("DATETIME", "TIMESTAMP")
+            conn.exec_driver_sql(
+                f"ALTER TABLE ride_pricing ADD COLUMN IF NOT EXISTS {col} {col_type}"
+            )
+        else:
+            try:
+                conn.exec_driver_sql(f"ALTER TABLE ride_pricing ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass
 
 
 def downgrade() -> None:

@@ -34,28 +34,28 @@ class _CellScratch:
     driver_ids: set[int] = field(default_factory=set)
 
 
-def _align_bucket_start(now, bucket_minutes: int):
+def align_bucket_start(now, bucket_minutes: int):
+    """Align ``now`` to the start of the current fixed-width bucket."""
     minute = (now.minute // bucket_minutes) * bucket_minutes
     return now.replace(minute=minute, second=0, microsecond=0)
+
+
+def _align_bucket_start(now, bucket_minutes: int):
+    return align_bucket_start(now, bucket_minutes)
 
 
 def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
-def compute_sil_bucket(
+def gather_sil_cell_scratches(
     db: Session,
     *,
-    window_minutes: int = 30,
-    bucket_minutes: int = 5,
+    since,
     h3_res: int | None = None,
-) -> datetime:
-    """Recompute aggregates for the current bucket; returns bucket_start_ts."""
+) -> dict[str, _CellScratch]:
+    """Pure aggregation from rides, presence, and telemetry (no DB writes)."""
     h3_res = h3_res if h3_res is not None else DEFAULT_H3_RES
-    now = utc_now_naive()
-    bucket_start = _align_bucket_start(now, bucket_minutes)
-    since = now - timedelta(minutes=window_minutes)
-
     cells: dict[str, _CellScratch] = defaultdict(_CellScratch)
 
     demand_statuses = {
@@ -99,6 +99,19 @@ def compute_sil_bucket(
         if point.speed_mps is not None:
             scratch.speeds.append(float(point.speed_mps))
 
+    return cells
+
+
+def persist_sil_bucket(
+    db: Session,
+    *,
+    cells: dict[str, _CellScratch],
+    bucket_start,
+    bucket_minutes: int,
+    now=None,
+) -> None:
+    """Write gathered cell scratches to ``sil_cell_aggregate`` for one bucket."""
+    now = now or utc_now_naive()
     db.query(SilCellAggregate).filter(
         SilCellAggregate.bucket_start_ts == bucket_start
     ).delete(synchronize_session=False)
@@ -165,6 +178,27 @@ def compute_sil_bucket(
         )
 
     db.commit()
+
+
+def compute_sil_bucket(
+    db: Session,
+    *,
+    window_minutes: int = 30,
+    bucket_minutes: int = 5,
+    h3_res: int | None = None,
+) -> datetime:
+    """Recompute aggregates for the current bucket; returns bucket_start_ts."""
+    now = utc_now_naive()
+    bucket_start = _align_bucket_start(now, bucket_minutes)
+    since = now - timedelta(minutes=window_minutes)
+    cells = gather_sil_cell_scratches(db, since=since, h3_res=h3_res)
+    persist_sil_bucket(
+        db,
+        cells=cells,
+        bucket_start=bucket_start,
+        bucket_minutes=bucket_minutes,
+        now=now,
+    )
     return bucket_start
 
 

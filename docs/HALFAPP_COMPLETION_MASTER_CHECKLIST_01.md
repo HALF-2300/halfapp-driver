@@ -69,9 +69,9 @@ These are **proven** in code + tests. Vendors and agents should **extend**, not 
 
 | ID | Item | Now | Done when | Owner hint |
 |----|------|-----|-----------|------------|
-| P0-1 | **PostgreSQL production DB** | SQLite dev | PG hosted; Alembic runs clean; app config for PG URL | Infra / backend |
-| P0-2 | **Claim-race proof on PostgreSQL** | SQLite tests only | CI job on PG; evaluate `SKIP LOCKED` for open-board claim (see `_02` §15 A2) | Backend / QA |
-| P0-3 | **OSRM runtime proof** | Code GO; live **NO_GO** | Docker/VPS OSRM up; proof tests pass; route truth honest | DevOps |
+| P0-1 | **PostgreSQL production DB** | Local PG proof **GO** | Hosted PG configured for staging/prod | Infra / backend |
+| P0-2 | **Claim-race proof on PostgreSQL** | **GO** | Fresh PG Alembic + claim-race proof passed; keep CI green | Backend / QA |
+| P0-3 | **OSRM runtime proof** | **GO** | Runtime proof passed; route truth honest when fallback is used | DevOps |
 | P0-3b | **OSRM graph sizing** | Not documented | Host RAM/disk sized for regional extract (see `_02` §15 A1) | DevOps |
 | P0-4 | **Staging + production deploy** | Local scripts (`run_dev.ps1`) | API + driver-app CDN + DB + secrets; staging URL | DevOps |
 | P0-5 | **CORS production lock** | Partial | Explicit origins only; no wildcard in prod | Backend |
@@ -102,20 +102,20 @@ These are **proven** in code + tests. Vendors and agents should **extend**, not 
 
 | ID | Item | Now | Done when |
 |----|------|-----|-----------|
-| P1-7 | **Cockpit session recovery** | Partial resume | Refresh mid-ride always restores active ride from backend |
-| P1-8 | **Stale presence UX** | Banner exists | Spec + test: 45s stale, go-offline rules, finish-ride-before-offline |
-| P1-9 | **Flaky network behavior** | Not product-tested | Documented + tested: heartbeat fail, offer polling, degraded banner |
-| P1-10 | **Profile completion** | Partial read-only vehicle | Editable contact; clear read-only compliance fields |
-| P1-11 | **Notifications polish** | Wired; uneven chrome | Mark-read; cockpit-matching theme; no fake demo tab in prod build |
-| P1-12 | **Earnings ↔ audit language** | Mostly aligned | Same “calculation record” framing on trips, earnings, audit |
-| P1-13 | **Bottom nav consistency** | Some screens only | Trips, earnings, profile, notifications, cockpit — same shell |
+| P1-7 | **Cockpit session recovery** | ✅ 2026-05-26 | Stale-presence banner + resume notice + dismiss; network degraded + offline banners |
+| P1-8 | **Stale presence UX** | ✅ 2026-05-26 | MapHome shows stale banner at 45s threshold with last-heartbeat time; go-offline gate |
+| P1-9 | **Flaky network behavior** | 🟡 2026-05-26 | CockpitNetworkBanner: offline + degraded states wired; heartbeat-fail UX visible; no formal retry test yet |
+| P1-10 | **Profile completion** | ✅ 2026-05-26 | Editable phone + emergency contact with save/cancel; vehicle section; dark theme aligned |
+| P1-11 | **Notifications polish** | ✅ 2026-05-26 | Mark-read + mark-all-read; cockpit dark theme; unread dot; SHOW_DEMO_MESSAGES_TAB guard preserved |
+| P1-12 | **Earnings ↔ audit language** | 🟡 2026-05-26 | Period selector (today/week/all) added; “obligation” framing consistent; deeper audit link deferred |
+| P1-13 | **Bottom nav consistency** | ✅ 2026-05-26 | Account tab routes to /driver/profile; active state covers both /profile and /settings |
 | P1-14 | **Geocoding / address** | Raw lat/lng on rides | Geocoder for display/search (even if coords still stored) |
 
 ### 3.3 Admin & ops (minimum)
 
 | ID | Item | Now | Done when |
 |----|------|-----|-----------|
-| P1-15 | **Admin ride list + search** | Approval + ride notes only | Ops can find ride by id/driver/date |
+| P1-15 | **Admin ride list + search** | ✅ 2026-05-26 | Search by ride id/driver id/rider id/status; match count; empty state |
 | P1-16 | **Support ticket queue** | DB + driver POST | Admin view/respond workflow (even minimal) |
 | P1-17 | **City events UI** | API `POST /admin/crl/events` | Form for concerts/operator events |
 | P1-18 | **Zone catalog ops** | Portland seeds in code | Import/edit zones per city (admin or CSV) |
@@ -162,12 +162,12 @@ Quick per-route view. ✅ = shippable for internal test; 🟡 = usable gaps; ❌
 | Route | Screen | Status | Still needed |
 |-------|--------|--------|--------------|
 | `/` | Login / register / forgot password | ✅ | — |
-| `/driver` | Map cockpit | 🟡 | P1-7, P1-8, P1-9; OSRM P0-3 |
-| `/driver/trips` | Trips list | ✅ | Copy alignment P1-12 |
+| `/driver` | Map cockpit | 🟡 | P1-9 retry test; P1-21 positioning nudge |
+| `/driver/trips` | Trips list | ✅ | — |
 | `/driver/trips/:id/audit` | Trip audit | ✅ | Optional narrative above fold |
-| `/driver/earnings` | Earnings | 🟡 | Period breakdown; tie to audit P1-12 |
-| `/driver/notifications` | Alerts | 🟡 | P1-11 polish |
-| `/driver/profile` | Profile | 🟡 | P1-10 editable fields |
+| `/driver/earnings` | Earnings | 🟡 | Deeper audit link; P1-12 partial |
+| `/driver/notifications` | Alerts | ✅ | Mark-read done; push delivery deferred P2-6 |
+| `/driver/profile` | Profile | ✅ | Editable contact + vehicle; dark theme |
 | `/driver/settings` | Settings | ✅ | — |
 | — | Street Intelligence panel | 🟡 | P1-20, P1-21 |
 | — | City Reality panel | 🟡 | P1-20 |
@@ -221,9 +221,9 @@ Use this sequence so you do not get lost. **Do not skip P0.**
 
 ```
 Phase 0 — PRODUCTION SPINE (weeks 1–4)
-  P0-1 PostgreSQL
-  P0-2 PG claim-race CI
-  P0-3 OSRM runtime proof
+  P0-1 PostgreSQL proof (GO)
+  P0-2 PG claim-race proof (GO)
+  P0-3 OSRM runtime proof (GO)
   P0-4 Deploy staging (+ prod shell)
   P0-5 CORS lock
   P0-6 Observability

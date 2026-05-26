@@ -44,11 +44,11 @@ export default function RidePayoutSummary({ pricing, locked = false, variant = '
   const showRider = variant === 'rider' || variant === 'final' || variant === 'ledger' || variant === 'quote'
 
   const titles = {
-    driver: 'Driver earnings',
+    driver: 'Recorded driver obligation',
     rider: 'Customer receipt',
-    quote: 'Payout preview',
+    quote: 'Obligation preview',
     final: 'Trip completed',
-    ledger: isFinal ? 'Trip payout (locked)' : 'Payout preview',
+    ledger: isFinal ? 'Recorded obligation (locked)' : 'Obligation preview',
   }
   const title = titles[variant] ?? titles.ledger
 
@@ -91,7 +91,7 @@ export default function RidePayoutSummary({ pricing, locked = false, variant = '
             </p>
           )}
           <Line
-            label="Driver ride payout"
+            label="Driver obligation base"
             cents={pricing.driver_ride_payout_cents ?? pricing.driver_commission_cents}
             testId="driver-ride-payout"
             hint="After platform commission on driver-shareable fare"
@@ -103,7 +103,7 @@ export default function RidePayoutSummary({ pricing, locked = false, variant = '
             hint="Tips are driver money and are not commissioned"
           />
           <Line
-            label="Driver total payout"
+            label="Recorded driver obligation"
             cents={pricing.driver_total_payout_cents ?? pricing.driver_earnings_cents}
             testId="driver-total-payout"
             emphasize

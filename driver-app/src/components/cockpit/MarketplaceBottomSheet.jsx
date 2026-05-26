@@ -13,6 +13,9 @@ import TripTruthDetails from './TripTruthDetails.jsx'
 import EarningsVisibilityPanel from '../EarningsVisibilityPanel.jsx'
 import RideChatPanel from './RideChatPanel.jsx'
 import RideNavigationPanel from './RideNavigationPanel.jsx'
+import RideAiDispatchPanel from './RideAiDispatchPanel.jsx'
+import DriverReadinessCard from './DriverReadinessCard.jsx'
+import CompletionReceiptCard from './CompletionReceiptCard.jsx'
 
 function cockpitBackendState(state) {
   if (state === DRIVER_STATES.ACCEPTED_TO_PICKUP) return 'accepted'
@@ -79,6 +82,9 @@ export default function MarketplaceBottomSheet(props) {
     sseFailed,
     lastCompletedRide,
     onDismissCompletedSummary,
+    rideAi,
+    readiness,
+    onReadinessAction,
   } = props
 
   const [expanded, setExpanded] = useState(false)
@@ -100,16 +106,25 @@ export default function MarketplaceBottomSheet(props) {
   if (state === DRIVER_STATES.OFFLINE) {
     content = (
       <div data-testid="sheet-offline">
-        <DriverActionSheet
-          statusLabel="Offline"
-          statusTone="text-slate-400"
-          headline="Go online to start receiving requests."
-          action={
-            <PrimaryRideActionButton onClick={goOnline} tone="success" testId="go-online-btn">
-              Go online
-            </PrimaryRideActionButton>
-          }
-        />
+        {readiness && !readiness.canGoOnline ? (
+          <DriverReadinessCard
+            readiness={readiness}
+            loading={loadingBackend}
+            onAction={onReadinessAction}
+          />
+        ) : (
+          <DriverActionSheet
+            statusLabel="Ready to go online"
+            statusTone="text-emerald-300/90"
+            headline="Ready check complete."
+            body="Go online when you are ready to receive closed-beta jobs."
+            action={
+              <PrimaryRideActionButton onClick={goOnline} tone="success" testId="go-online-btn">
+                Go online
+              </PrimaryRideActionButton>
+            }
+          />
+        )}
         {backendError && (
           <p className="mt-2 text-[11px] text-amber-300 text-center" data-testid="accept-ride-error">
             {backendError}
@@ -131,6 +146,11 @@ export default function MarketplaceBottomSheet(props) {
             <div className="flex flex-wrap items-center gap-2 px-1">
               <TestRideLabel lifecycleReason={lastCompletedRide?.raw?.lifecycle_reason} />
             </div>
+            <CompletionReceiptCard
+              ride={lastCompletedRide}
+              amount={lastCompletedRide.fareAmount}
+              onDismiss={onDismissCompletedSummary}
+            />
             <p className="text-[10px] text-[var(--ha-muted)]/80 px-1" data-testid="completed-trip-beta-note">
               {BETA_COMPLETED_TRIP_NOTE}
             </p>
@@ -166,7 +186,7 @@ export default function MarketplaceBottomSheet(props) {
           </>
         )}
         <DriverActionSheet
-          statusLabel="Available"
+          statusLabel="Online and waiting"
           statusTone="text-emerald-300/90"
           headline="Waiting for requests nearby."
           synced={presenceSynced}
@@ -200,7 +220,7 @@ export default function MarketplaceBottomSheet(props) {
         {expanded && (
           <>
             <DriverAvailabilityCard
-              title="Available"
+              title="Online and waiting"
               subtitle="Waiting for requests nearby."
               todayTrips={summary.todayTrips}
               totalTrips={summary.totalTrips}
@@ -249,6 +269,16 @@ export default function MarketplaceBottomSheet(props) {
           title="Trip details"
         />
         {claimConflict && <ClaimConflictNotice />}
+        {rideAi ? (
+          <RideAiDispatchPanel
+            panelText={rideAi.panelText}
+            panelMeta={rideAi.panelMeta}
+            manualMode={rideAi.manualMode}
+            dispatchAiState={rideAi.dispatchAiState}
+            streaming={rideAi.streaming}
+            onReset={rideAi.onReset}
+          />
+        ) : null}
       </div>
     )
   } else if (
@@ -257,13 +287,20 @@ export default function MarketplaceBottomSheet(props) {
       state === DRIVER_STATES.IN_PROGRESS) &&
     ride
   ) {
+    const stepIndex =
+      state === DRIVER_STATES.ACCEPTED_TO_PICKUP ? 0
+      : state === DRIVER_STATES.ARRIVED_PICKUP ? 1
+      : 2
+    const STEPS = ['To pickup', 'Arrived', 'In trip']
     const headline =
       state === DRIVER_STATES.ACCEPTED_TO_PICKUP
         ? 'Heading to pickup'
         : state === DRIVER_STATES.ARRIVED_PICKUP
           ? 'At pickup'
-          : 'In progress'
-    const subhead = state === DRIVER_STATES.IN_PROGRESS ? ride.dropoff.label : ride.pickup.label
+          : 'Trip in progress'
+    const headlineTone =
+      state === DRIVER_STATES.IN_PROGRESS ? '#34d399' : '#60a5fa'
+    const destination = state === DRIVER_STATES.IN_PROGRESS ? ride.dropoff.label : ride.pickup.label
     const buttonTone = state === DRIVER_STATES.IN_PROGRESS ? 'success' : 'primary'
     const backendCockpitState = cockpitBackendState(state)
     content = (
@@ -273,19 +310,76 @@ export default function MarketplaceBottomSheet(props) {
         data-cockpit-state={backendCockpitState}
         data-ride-id={String(ride.rideId)}
       >
+        {/* Trip progress indicator */}
+        <div className="flex items-center gap-0">
+          {STEPS.map((step, i) => {
+            const isDone = i < stepIndex
+            const isActive = i === stepIndex
+            return (
+              <React.Fragment key={step}>
+                <div className="flex flex-col items-center" style={{ flex: 1 }}>
+                  <div
+                    className="w-2 h-2 rounded-full border-2"
+                    style={
+                      isDone
+                        ? { background: '#34d399', borderColor: '#34d399' }
+                        : isActive
+                          ? { background: headlineTone, borderColor: headlineTone, boxShadow: `0 0 0 4px ${headlineTone}30` }
+                          : { background: 'transparent', borderColor: 'rgba(255,255,255,0.2)' }
+                    }
+                  />
+                  <span
+                    className="text-[9px] mt-1 font-semibold uppercase tracking-wide"
+                    style={{ color: isActive ? 'var(--ha-text)' : isDone ? 'var(--ha-muted)' : 'rgba(255,255,255,0.25)' }}
+                  >
+                    {step}
+                  </span>
+                </div>
+                {i < STEPS.length - 1 ? (
+                  <div
+                    className="flex-1 h-px mb-4"
+                    style={{ background: isDone ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.1)' }}
+                  />
+                ) : null}
+              </React.Fragment>
+            )
+          })}
+        </div>
+
+        {/* Rider + fare */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wide text-cyan-300">{headline}</p>
-            <p className="truncate text-[18px] font-semibold">{ride.riderName}</p>
-            <p className="truncate text-[13px] text-[var(--ha-muted)]">→ {subhead}</p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-[10px] uppercase tracking-wide text-[var(--ha-muted)]">Est. payout</p>
-            <p className="text-[20px] font-bold" data-testid="ride-active-payout">
-              {ride.fareAmount == null ? 'Pending' : formatCurrency(ride.fareAmount)}
+            <p
+              className="text-[11px] font-semibold uppercase tracking-[0.1em]"
+              style={{ color: headlineTone }}
+            >
+              {headline}
+            </p>
+            <p className="truncate text-[18px] font-semibold mt-0.5">{ride.riderName}</p>
+            <p className="truncate text-[12px] mt-0.5" style={{ color: 'var(--ha-muted)' }}>
+              → {destination}
             </p>
           </div>
+          <div className="text-right shrink-0">
+            <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: 'var(--ha-muted)' }}>
+              Obligation
+            </p>
+            <p className="text-[22px] font-bold tabular-nums mt-0.5" data-testid="ride-active-payout">
+              {ride.fareAmount == null ? 'Pending' : formatCurrency(ride.fareAmount)}
+            </p>
+            <p className="text-[9px]" style={{ color: 'var(--ha-muted)' }}>Settlement record</p>
+          </div>
         </div>
+        {nextAction && (
+          <PrimaryRideActionButton
+            onClick={advanceState}
+            tone={buttonTone}
+            disabled={loadingBackend}
+            testId={`advance-${state.toLowerCase()}`}
+          >
+            {nextAction.label}
+          </PrimaryRideActionButton>
+        )}
         <ExternalNavigationButtons pickup={ride.pickup} dropoff={ride.dropoff} />
         <RideNavigationPanel
           rideId={ride.rideId}
@@ -300,19 +394,9 @@ export default function MarketplaceBottomSheet(props) {
             disabled={loadingBackend}
             testId="release-ride-btn"
           >
-            Release ride to pool
+            Release job to pool
           </PrimaryRideActionButton>
         ) : null}
-        {nextAction && (
-          <PrimaryRideActionButton
-            onClick={advanceState}
-            tone={buttonTone}
-            disabled={loadingBackend}
-            testId={`advance-${state.toLowerCase()}`}
-          >
-            {nextAction.label}
-          </PrimaryRideActionButton>
-        )}
         <TripTruthDetails
           ride={ride.raw ?? ride}
           pricing={ride.pricing}
@@ -321,15 +405,35 @@ export default function MarketplaceBottomSheet(props) {
           title="Trip details"
         />
         {backendError && <p className="text-[11px] text-amber-300 text-center">{backendError}</p>}
+        {rideAi ? (
+          <RideAiDispatchPanel
+            panelText={rideAi.panelText}
+            panelMeta={rideAi.panelMeta}
+            manualMode={rideAi.manualMode}
+            dispatchAiState={rideAi.dispatchAiState}
+            streaming={rideAi.streaming}
+            onReset={rideAi.onReset}
+          />
+        ) : null}
       </div>
     )
   } else {
     content = (
       <div className="space-y-3" data-testid="sheet-fallback">
-        <p className="text-[13px] text-[var(--ha-muted)]">Ready when you are.</p>
-        <PrimaryRideActionButton onClick={goOnline} tone="success" testId="go-online-btn">
-          Go online
-        </PrimaryRideActionButton>
+        {readiness && !readiness.canGoOnline ? (
+          <DriverReadinessCard
+            readiness={readiness}
+            loading={loadingBackend}
+            onAction={onReadinessAction}
+          />
+        ) : (
+          <>
+            <p className="text-[13px] text-[var(--ha-muted)]">Ready when you are.</p>
+            <PrimaryRideActionButton onClick={goOnline} tone="success" testId="go-online-btn">
+              Go online
+            </PrimaryRideActionButton>
+          </>
+        )}
       </div>
     )
   }

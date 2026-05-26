@@ -1,10 +1,12 @@
 # Product Boundary — Stage 0 Truth Lock
 
-Date: 2026-05-22  
+Date: 2026-05-24  
 Orders: `HALFAPP_STAGE0_TRUTH_BOUNDARY_LOCK_01`, `HALFAPP_TRUTH_SYNC_V0_1_DOC_RECONCILIATION_01`, `HALFAPP_TRUTH_SYNC_BACKLOG_RECONCILIATION_01`  
 Status: **Active contract** for engineers, reviewers, agents, and investors.
 
-This repository is **not** a complete mobility, routing, or city-scale ride-hailing operating system. The active product is a **driver lifecycle spine** with a minimal rider API, honest open-board dispatch proofs, and a **v0.1 foundation** (pricing ledger, map, routing metadata).
+**Authoritative classification:** `docs/SYSTEM_TRUTH.md`
+
+This repository is **not** a complete mobility, routing, or city-scale ride-hailing operating system. The active product is a **driver-side execution system** with a minimal rider API, honest open-board dispatch proofs, and a **v0.1 foundation** (pricing ledger, map, routing metadata). It is **not** a two-sided marketplace.
 
 Companion docs:
 
@@ -34,7 +36,8 @@ py -3.11 scripts/verify_current_truth_backlog.py
 | Surface | Path | Role |
 |---------|------|------|
 | Backend API | `backend/` | FastAPI: auth, driver lifecycle, presence, open-board dispatch audit, v0.1 pricing/routing metadata, rider create/cancel API, notifications, earnings **summaries** |
-| Driver app | `driver-app/` | React/Vite driver cockpit — **only** active frontend; **`/drivers/*` path only** |
+| Rider app | `rider-app/` | React/Vite rider request + status UI — **Phase 1 product** |
+| Driver app | `driver-app/` | React/Vite driver cockpit — **`/drivers/*` path only** |
 
 Entry points:
 
@@ -96,7 +99,8 @@ The in-app map shows coordinates and provider labels; it does not prove address 
 
 | Surface | Status |
 |---------|--------|
-| `frontend/` | Legacy multi-role UI; **not** mounted on active API; see `frontend/README.md` |
+| `frontend/` | **ARCHIVE · NOT WIRED · NOT PRODUCTION** — see `frontend/README.md` |
+| `rider-stub/` | **DEMO ONLY** — see `rider-stub/README.md` |
 | `video-gate/` | Unrelated video QA tooling |
 | `backend/routes/admin.py` | Dormant — not in `main.py` |
 | `backend/routes/admin_access.py` | Dormant |
@@ -118,7 +122,7 @@ Until a separate implementation order explicitly ships and tests each capability
 - **No live ETA product** marketed as shipped.
 - **No commercial paid-traffic APIs** — experimental traffic signals only.
 - **No nearest-driver auto-dispatch** — open board only; dossier geospatial auto-match is not driver-app truth.
-- **No rider app UI** — API-only rider side.
+- **No full rider product** — Phase 1 `rider-app` covers request + status only; no history, receipts, or payments UX.
 - **No live admin ops UI** — dormant admin routers.
 - **No city-scale marketplace / mobility OS** claims.
 - **No geocoding proof** from address text alone.

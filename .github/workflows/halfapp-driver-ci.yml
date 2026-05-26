@@ -74,7 +74,19 @@ jobs:
       - name: Install backend deps
         run: pip install -r backend/requirements.txt
 
-      - name: Run Postgres claim race proof
+      - name: Alembic upgrade head on PostgreSQL
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg2://halfapp:halfapp@localhost:5432/halfapp_test
+        run: alembic upgrade head
+
+      - name: Verify Alembic head on PostgreSQL (pytest)
+        env:
+          DATABASE_URL: postgresql+psycopg2://halfapp:halfapp@localhost:5432/halfapp_test
+          PYTHONPATH: backend
+        run: python -m pytest backend/tests/test_alembic_postgres_upgrade_head.py -q
+
+      - name: Run Postgres claim race proof (10 concurrent accepts → 1×200, 9×409)
         env:
           DATABASE_URL: postgresql+psycopg2://halfapp:halfapp@localhost:5432/halfapp_test
           PYTHONPATH: backend

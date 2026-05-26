@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from services.rate_limit import AuthRateLimitMiddleware
+from middleware.request_logging import RequestLoggingMiddleware
 
 from database import engine
 from migrations import run_migrations
@@ -52,7 +53,7 @@ import models.proof_receipt  # noqa: F401
 import models.crl_cell_snapshot  # noqa: F401
 import models.crl_cell_explanation  # noqa: F401
 import models.crl_time_pattern  # noqa: F401
-import models.zone_catalog  # noqa: F401
+import models.payment  # noqa: F401
 import models.city_event  # noqa: F401
 import routes.notifications  # noqa: F401 — defines Notification model
 
@@ -78,6 +79,10 @@ run_migrations(engine)
 app = FastAPI(title="HalfApp API", version="0.1.0")
 
 
+def _truthy_env(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "y", "on")
+
+
 @app.on_event("startup")
 async def _ride_pool_broadcast_startup() -> None:
     import asyncio
@@ -85,6 +90,18 @@ async def _ride_pool_broadcast_startup() -> None:
     from services.event_bus import event_bus
 
     event_bus.set_loop(asyncio.get_running_loop())
+
+
+@app.on_event("startup")
+async def _background_jobs_startup() -> None:
+    import asyncio
+
+    from database import SessionLocal
+
+    if _truthy_env("HALFAPP_SIL_CRL_WORKER_ENABLED"):
+        from jobs.sil_crl_worker import sil_crl_worker_loop
+
+        asyncio.create_task(sil_crl_worker_loop(SessionLocal))
 
 app.add_middleware(
     CORSMiddleware,
@@ -94,6 +111,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(AuthRateLimitMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 
 
 @app.get("/health")
@@ -117,10 +135,6 @@ app.include_router(payments_webhooks_router)
 app.include_router(stripe_connect_router)
 app.include_router(payments_stripe_router)
 app.include_router(payments_admin_router)
-
-
-def _truthy_env(name: str) -> bool:
-    return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "y", "on")
 
 
 # Dossier foundation spine — OFF unless HALFAPP_DOSSIER_SPINE_ENABLED (HALFAPP_DOSSIER_MOUNT_GATE_01).
