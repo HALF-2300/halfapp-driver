@@ -3,7 +3,9 @@ HalfApp FastAPI entrypoint. Run from the `backend/` directory:
 
   uvicorn main:app --reload --host 127.0.0.1 --port 8000
 """
+import asyncio
 import os
+from contextlib import asynccontextmanager
 
 from config import get_cors_origins  # noqa: F401 — production guards; load before routes
 from production_guards import assert_safe_secret_key_for_runtime
@@ -75,16 +77,16 @@ from routes.payments_admin import router as payments_admin_router
 
 run_migrations(engine)
 
-app = FastAPI(title="HalfApp API", version="0.1.0")
 
-
-@app.on_event("startup")
-async def _ride_pool_broadcast_startup() -> None:
-    import asyncio
-
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
     from services.event_bus import event_bus
 
     event_bus.set_loop(asyncio.get_running_loop())
+    yield
+
+
+app = FastAPI(title="HalfApp API", version="0.1.0", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,

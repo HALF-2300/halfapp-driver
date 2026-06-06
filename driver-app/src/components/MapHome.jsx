@@ -320,7 +320,13 @@ export default function MapHome() {
           eligible.sort((a, b) => Number(b.id) - Number(a.id))[0] ?? null
       }
       const selected = assigned || requested || null
-      const cockpitRide = backendRideToCockpitRide(selected)
+      let cockpitRide = null
+      try {
+        cockpitRide = backendRideToCockpitRide(selected)
+      } catch (convErr) {
+        // Skip this ride rather than failing the whole refresh — backend ride is malformed
+        console.warn('[MapHome] backendRideToCockpitRide skipped ride', selected?.id, convErr.message)
+      }
       if (refreshId !== refreshSeq.current) return
       setActiveRide(cockpitRide)
       setEarningsSummary(earnings?.earnings_summary || null)
@@ -654,9 +660,14 @@ export default function MapHome() {
       setBackendError(null)
       setBackendHideNotice(null)
       try {
+        const backendStatus = activeRide.backendStatus
         if (options.reason === 'dispatch_timeout') {
           await driverAPI.declineDispatchOffer(activeRide.rideId).catch(() => null)
+        } else if (backendStatus === 'accepted') {
+          // Release an accepted-but-not-yet-started ride back to the open pool
+          await driverAPI.declineRide(activeRide.rideId, { reason: options.reason ?? 'driver_released' })
         } else {
+          // Decline a dispatch offer (ride still in requested/unaccepted state)
           await driverAPI.declineDispatchOffer(activeRide.rideId).catch(async () => {
             await driverAPI.hideRide(activeRide.rideId, { reason: 'driver_declined_offer' })
           })
@@ -665,7 +676,9 @@ export default function MapHome() {
         setStatus({ state: DRIVER_STATES.ONLINE_IDLE, online: true })
         if (options.reason !== 'dispatch_timeout') {
           setBackendHideNotice(
-            'Offer declined. The ride may be sent to another eligible driver.'
+            backendStatus === 'accepted'
+              ? 'Ride released to pool. Another driver can now accept it.'
+              : 'Offer declined. The ride may be sent to another eligible driver.'
           )
         }
         await refreshBackendTruth(true)
