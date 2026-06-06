@@ -293,7 +293,7 @@ export default function MarketplaceBottomSheet(props) {
           onConnectivityRestore={onConnectivityRestore}
         />
         <RideChatPanel rideId={ride.rideId} />
-        {state !== DRIVER_STATES.REQUEST_INCOMING ? (
+        {state === DRIVER_STATES.ACCEPTED_TO_PICKUP ? (
           <PrimaryRideActionButton
             onClick={() => declineRide?.({ reason: 'driver_released_active_ride' })}
             tone="neutral"
