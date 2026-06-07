@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/unit/**/*.test.js",
+    "test": "node ../scripts/run-node-tests-inline.mjs \"tests/unit/**/*.test.js\"",
     "test:e2e:ride-flow": "playwright test -c playwright.ride-flow.config.js"
   },
   "dependencies": {

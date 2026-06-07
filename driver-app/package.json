@@ -8,7 +8,7 @@
     "prebuild": "node scripts/assert-prod-truth.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/unit/**/*.test.js && node scripts/assert-no-ai-providers.mjs && node scripts/assert-no-money-claims.mjs",
+    "test": "node ../scripts/run-node-tests-inline.mjs \"tests/unit/**/*.test.js\" && node scripts/assert-no-ai-providers.mjs && node scripts/assert-no-money-claims.mjs",
     "assert:no-money-claims": "node scripts/assert-no-money-claims.mjs",
     "test:e2e": "playwright test",
     "pretest:e2e:cockpit": "node scripts/ensure-playwright-port-free.mjs",

@@ -47,6 +47,19 @@ export default function BottomNavigation({ embedded = false }) {
       ),
     },
     {
+      id: 'deliveries',
+      label: 'Delivery',
+      path: '/driver/deliveries',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="h-5 w-5">
+          <path
+            d="M3 5.5A2.5 2.5 0 015.5 3h6A2.5 2.5 0 0114 5.5V6h1.2c.6 0 1.15.32 1.45.84l1.15 2.01c.13.23.2.49.2.76V14a1 1 0 01-1 1h-1.05a2.25 2.25 0 01-4.4 0h-3.1a2.25 2.25 0 01-4.4 0H3a1 1 0 01-1-1V5.5Zm2 0V13h.18a2.25 2.25 0 013.14 0H12V5.5a.5.5 0 00-.5-.5h-6a.5.5 0 00-.5.5ZM14 8v5h.18a2.25 2.25 0 011.64 0H16V9.9L14.91 8H14ZM6.25 15.75a.75.75 0 100-1.5.75.75 0 000 1.5Zm9.5-.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0Z"
+            fill="currentColor"
+          />
+        </svg>
+      ),
+    },
+    {
       id: 'notifications',
       label: 'Alerts',
       path: '/driver/notifications',
@@ -87,7 +100,7 @@ export default function BottomNavigation({ embedded = false }) {
 
   const positionClass = embedded
     ? 'bottom-nav-dock pointer-events-auto'
-    : 'fixed bottom-4 left-1/2 z-30 w-[min(680px,calc(100vw-24px))] -translate-x-1/2 rounded-[24px] border border-white/10 bg-[rgba(7,12,26,0.82)] shadow-[0_18px_60px_rgba(0,0,0,0.36)] backdrop-blur-[20px]'
+    : 'bottom-nav-dock bottom-nav-dock--fixed'
 
   return (
     <nav
@@ -104,18 +117,18 @@ export default function BottomNavigation({ embedded = false }) {
               to={tab.path}
               aria-label={tab.label}
               data-testid={`tab-${tab.id}`}
-              className={`cockpit-pressable flex flex-1 flex-col items-center justify-center gap-0.5 rounded-[18px] py-2 text-[10px] font-medium transition-colors ${
-                isActive ? 'text-[#60A5FA]' : 'text-[#64748B]'
+              className={`cockpit-pressable bottom-nav-item ${
+                isActive ? 'bottom-nav-item--active' : ''
               }`}
             >
               {React.cloneElement(tab.icon, {
-                className: `${tab.icon.props.className} ${isActive ? 'text-[#60A5FA]' : 'text-[#64748B]'}`,
+                className: `${tab.icon.props.className} bottom-nav-icon`,
               })}
-              <span className="relative inline-flex items-center gap-1">
+              <span className="bottom-nav-label">
                 {tab.label}
                 {tab.badge > 0 ? (
                   <span
-                    className="min-w-[16px] rounded-full bg-[#ef4444] px-1 text-[9px] font-bold text-white"
+                    className="bottom-nav-badge"
                     data-testid={`tab-${tab.id}-badge`}
                   >
                     {tab.badge > 99 ? '99+' : tab.badge}

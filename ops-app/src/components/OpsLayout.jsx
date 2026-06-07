@@ -1,22 +1,25 @@
 import React from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
+import InternalBetaRibbon from './platform/InternalBetaRibbon.jsx'
 
 export default function OpsLayout() {
   const { user, logout } = useAuth()
 
   const navClass = ({ isActive }) =>
-    `px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-orange-500/20 text-orange-200' : 'text-slate-300 hover:bg-white/5'}`
+    `ops-nav-link ${isActive ? 'ops-nav-link--active' : ''}`
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-white/10 bg-[var(--ops-surface)]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+    <div className="min-h-screen ops-command-shell" data-testid="ops-command-shell">
+      <header className="ops-command-header border-b border-white/10">
+        <div className="mx-auto max-w-7xl px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <Link to="/" className="text-lg font-semibold text-orange-300">
-              HalfApp Ops
+            <p className="ops-command-eyebrow">HalfApp Command Platform</p>
+            <Link to="/" className="ops-command-title" data-testid="ops-command-title">
+              Ops control room
             </Link>
-            <p className="text-xs text-[var(--ops-muted)]">Internal control plane</p>
+            <p className="text-xs text-[var(--ops-muted)] mt-0.5">Live truth for every people-transport ride · operator console</p>
           </div>
           <nav className="flex items-center gap-2">
             <NavLink to="/" end className={navClass}>
@@ -25,6 +28,15 @@ export default function OpsLayout() {
             <NavLink to="/drivers" className={navClass}>
               Drivers
             </NavLink>
+            <NavLink to="/deliveries" className={navClass} data-testid="ops-nav-deliveries">
+              Deliveries
+            </NavLink>
+            <NavLink to="/readiness" className={navClass}>
+              Readiness
+            </NavLink>
+            <NavLink to="/support" className={navClass} data-testid="ops-nav-support">
+              Support
+            </NavLink>
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-[var(--ops-muted)]">{user?.email}</span>
@@ -32,9 +44,11 @@ export default function OpsLayout() {
               Log out
             </button>
           </div>
+          </div>
+          <InternalBetaRibbon detail="Truth board · not public launch" />
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto max-w-7xl px-4 py-6 ops-command-main">
         <Outlet />
       </main>
     </div>
