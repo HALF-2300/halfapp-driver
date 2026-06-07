@@ -11,12 +11,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 
 import HalfAppDriverPortalFrontPage from './frontpage/HalfAppDriverPortalFrontPage.jsx'
 
-import DevBanner from './components/DevBanner'
-
 import MockModeBanner from './components/MockModeBanner'
-import BetaTruthNotice from './components/BetaTruthNotice'
-
-import MapHome from './components/MapHome'
 
 import TripsList from './components/TripsList'
 import TripAuditReceipt from './components/TripAuditReceipt.jsx'
@@ -28,11 +23,29 @@ import Notifications from './components/Notifications'
 import Profile from './components/Profile'
 import DriverSettings from './components/DriverSettings.jsx'
 import HelpSupport from './components/HelpSupport.jsx'
+import SafetyToolkit from './components/SafetyToolkit.jsx'
+import DeliveryJobs from './components/DeliveryJobs.jsx'
 
 import { isEngineeringIntelligenceEnabled } from './utils/engineeringIntelligenceContext.js'
 
 const HalfAppEngineeringIntelligence = lazy(
   () => import('./components/HalfAppEngineeringIntelligence.jsx')
+)
+
+const NewCommandPreviewPage = lazy(
+  () => import('./components/new-ui/NewCommandPreviewPage.jsx')
+)
+
+const DriverCockpitPage = lazy(
+  () => import('./components/cockpit/DriverCockpitPage.jsx')
+)
+
+const DriverMapLabPage = lazy(
+  () => import('./components/map-lab/DriverMapLabPage.jsx')
+)
+
+const DriverOpenExaminationPage = lazy(
+  () => import('./components/map-lab/DriverOpenExaminationPage.jsx')
 )
 
 
@@ -49,7 +62,7 @@ const ALLOW_ROUTE_GUARD_BYPASS =
 
 function ProtectedRoute({ children }) {
 
-  const { isAuthenticated, hasCheckedSession } = useAuth()
+  const { isAuthenticated } = useAuth()
 
   const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('driver_token')
 
@@ -62,23 +75,6 @@ function ProtectedRoute({ children }) {
     localStorage.getItem('disable_guard') === 'true'
 
   if (disableGuard) return children
-
-  if (hasToken && !hasCheckedSession && !isAuthenticated) {
-    return (
-      <div
-        className="min-h-screen bg-[#050814] px-6 py-12 text-center text-slate-200"
-        data-testid="auth-session-restoring"
-      >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
-          HalfApp Driver
-        </p>
-        <h1 className="mt-3 text-xl font-semibold">Restoring driver session</h1>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-slate-400">
-          Checking your secure driver session before opening the cockpit.
-        </p>
-      </div>
-    )
-  }
 
   return (isAuthenticated || hasToken) ? children : <Navigate to="/" replace />
 
@@ -121,19 +117,34 @@ function AppRoutes() {
 
 
       <Route
-
         path={COCKPIT_PATH}
-
         element={
-
           <ProtectedRoute>
-
-            <MapHome />
-
+            <Suspense fallback={null}>
+              <DriverCockpitPage />
+            </Suspense>
           </ProtectedRoute>
-
         }
+      />
 
+      <Route
+        path="/driver-map-lab"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={null}>
+              <DriverMapLabPage />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/driver-open"
+        element={
+          <Suspense fallback={null}>
+            <DriverOpenExaminationPage />
+          </Suspense>
+        }
       />
 
 
@@ -168,6 +179,7 @@ function AppRoutes() {
       />
 
       <Route path="/driver/earnings" element={<ProtectedRoute><Earnings /></ProtectedRoute>} />
+      <Route path="/driver/deliveries" element={<ProtectedRoute><DeliveryJobs /></ProtectedRoute>} />
 
       <Route path="/driver/settings" element={<ProtectedRoute><DriverSettings /></ProtectedRoute>} />
       <Route path="/driver/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -175,8 +187,18 @@ function AppRoutes() {
       <Route path="/driver/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
 
       <Route path="/driver/help" element={<ProtectedRoute><HelpSupport /></ProtectedRoute>} />
+      <Route path="/driver/safety" element={<ProtectedRoute><SafetyToolkit /></ProtectedRoute>} />
 
-
+      <Route
+        path="/driver/command-preview"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={null}>
+              <NewCommandPreviewPage />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
 
       {isEngineeringIntelligenceEnabled() ? (
         <Route
@@ -194,6 +216,7 @@ function AppRoutes() {
       <Route path="/rides" element={<Navigate to="/driver/trips" replace />} />
 
       <Route path="/trips" element={<Navigate to="/driver/trips" replace />} />
+      <Route path="/deliveries" element={<Navigate to="/driver/deliveries" replace />} />
 
       <Route path="/earnings" element={<Navigate to="/driver/earnings" replace />} />
 
@@ -221,12 +244,7 @@ function App() {
 
       <div className="min-h-screen bg-[#050814]">
 
-        <DevBanner />
-
         <MockModeBanner />
-        <div className="px-4 pt-2">
-          <BetaTruthNotice variant="compact" />
-        </div>
 
         <HashRouter>
 

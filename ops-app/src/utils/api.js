@@ -76,6 +76,14 @@ export async function getRide(rideId) {
   return request(`/admin/rides/${rideId}`)
 }
 
+export async function fetchPresentJob(rideId) {
+  return request(`/present/jobs/${rideId}`)
+}
+
+export async function fetchReadinessBoard() {
+  return request('/admin/readiness-board')
+}
+
 export async function cancelRide(rideId, reason) {
   return request(`/admin/rides/${rideId}/cancel`, {
     method: 'POST',
@@ -101,6 +109,72 @@ export async function updateDriverReadiness(driverId, body) {
   })
 }
 
+export async function listSupportCases({ status, category, ride_id, limit } = {}) {
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  if (category) params.set('category', category)
+  if (ride_id != null) params.set('ride_id', String(ride_id))
+  if (limit != null) params.set('limit', String(limit))
+  const q = params.toString()
+  return request(`/support/cases${q ? `?${q}` : ''}`)
+}
+
+export async function getSupportCase(caseId) {
+  return request(`/support/cases/${caseId}`)
+}
+
+export async function updateSupportCaseStatus(caseId, status) {
+  return request(`/support/cases/${caseId}/status`, {
+    method: 'PATCH',
+    body: { status },
+  })
+}
+
+export async function listDeliveryOrders({ status } = {}) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : ''
+  return request(`/delivery/ops/orders${query}`)
+}
+
+export async function fetchDeliveryOrderForOps(orderId) {
+  return request(`/delivery/ops/orders/${orderId}`)
+}
+
+export async function refundDeliveryOrder(orderId, body) {
+  return request(`/delivery/ops/orders/${orderId}/refund`, {
+    method: 'POST',
+    body,
+  })
+}
+
+export async function listMerchantDeliveryOrders(merchantAccessCode) {
+  return request(`/delivery/merchant/orders?merchant_access_code=${encodeURIComponent(merchantAccessCode)}`)
+}
+
+export async function merchantAcceptDeliveryOrder(orderId, merchantAccessCode) {
+  return request(`/delivery/merchant/orders/${orderId}/accept?merchant_access_code=${encodeURIComponent(merchantAccessCode)}`, {
+    method: 'POST',
+  })
+}
+
+export async function merchantRejectDeliveryOrder(orderId, merchantAccessCode, reason) {
+  return request(`/delivery/merchant/orders/${orderId}/reject?merchant_access_code=${encodeURIComponent(merchantAccessCode)}`, {
+    method: 'POST',
+    body: { reason },
+  })
+}
+
+export async function merchantMarkDeliveryPreparing(orderId, merchantAccessCode) {
+  return request(`/delivery/merchant/orders/${orderId}/preparing?merchant_access_code=${encodeURIComponent(merchantAccessCode)}`, {
+    method: 'POST',
+  })
+}
+
+export async function merchantMarkDeliveryReady(orderId, merchantAccessCode) {
+  return request(`/delivery/merchant/orders/${orderId}/ready?merchant_access_code=${encodeURIComponent(merchantAccessCode)}`, {
+    method: 'POST',
+  })
+}
+
 export function formatCents(cents) {
   if (cents == null) return '—'
   return `$${(Number(cents) / 100).toFixed(2)}`
@@ -117,9 +191,29 @@ export function formatDate(value) {
 
 export function statusBadgeClass(status) {
   const s = (status || '').toLowerCase()
+  if (s === 'open') return 'bg-amber-900/50 text-amber-100'
+  if (s === 'in_review') return 'bg-sky-900/40 text-sky-200'
+  if (s === 'waiting_on_user') return 'bg-violet-900/40 text-violet-200'
+  if (s === 'resolved' || s === 'closed') return 'bg-emerald-900/50 text-emerald-200'
   if (s === 'completed' || s === 'captured') return 'bg-emerald-900/50 text-emerald-200'
   if (s === 'cancelled' || s === 'failed') return 'bg-red-900/40 text-red-200'
   if (s === 'in_progress' || s === 'accepted' || s === 'authorized') return 'bg-sky-900/40 text-sky-200'
   if (s === 'requested' || s === 'pending') return 'bg-amber-900/40 text-amber-200'
   return 'bg-slate-800 text-slate-300'
+}
+
+export function supportCategoryBadgeClass(category) {
+  const c = (category || '').toLowerCase()
+  if (c === 'safety_concern') return 'bg-red-900/60 text-red-100 border border-red-400/40'
+  if (c === 'lost_item') return 'bg-amber-900/40 text-amber-100'
+  if (c === 'ride_issue') return 'bg-sky-900/40 text-sky-100'
+  return 'bg-slate-800/80 text-slate-300'
+}
+
+export function supportCategoryLabel(category) {
+  const c = (category || '').toLowerCase()
+  if (c === 'safety_concern') return 'Safety concern'
+  if (c === 'lost_item') return 'Lost item'
+  if (c === 'ride_issue') return 'Ride issue'
+  return category || '—'
 }

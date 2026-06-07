@@ -6,6 +6,10 @@ import RequestRidePage from './components/RequestRidePage.jsx'
 import RideDetailPage from './components/RideDetailPage.jsx'
 import ProfilePage from './components/ProfilePage.jsx'
 import HelpPage from './components/HelpPage.jsx'
+import SafetyToolkitPage from './components/SafetyToolkitPage.jsx'
+import NotificationsPage from './components/NotificationsPage.jsx'
+import DeliveryOrderPage from './components/DeliveryOrderPage.jsx'
+import DeliveryOrderDetailPage from './components/DeliveryOrderDetailPage.jsx'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth()
@@ -47,10 +51,42 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/delivery"
+        element={
+          <ProtectedRoute>
+            <DeliveryOrderPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/delivery/:orderId"
+        element={
+          <ProtectedRoute>
+            <DeliveryOrderDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/help"
         element={
           <ProtectedRoute>
             <HelpPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/safety"
+        element={
+          <ProtectedRoute>
+            <SafetyToolkitPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <NotificationsPage />
           </ProtectedRoute>
         }
       />

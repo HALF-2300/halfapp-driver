@@ -1063,6 +1063,52 @@ class DriverAPI {
     }
   }
 
+  async getMyDriverDocuments() {
+    return await this.call('/drivers/me/documents')
+  }
+
+  async submitMyDriverDocument(payload) {
+    return await this.call('/drivers/me/documents', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async getPresentJob(rideId) {
+    return await this.call(`/present/jobs/${rideId}`)
+  }
+
+  async getPresentMeActive() {
+    return await this.call('/present/me/active')
+  }
+
+  async getDeliveryOffers() {
+    return await this.call('/delivery/courier/offers')
+  }
+
+  async getMyDeliveryOrders() {
+    return await this.call('/delivery/courier/orders')
+  }
+
+  async acceptDeliveryOrder(orderId) {
+    return await this.call(`/delivery/courier/orders/${orderId}/accept`, { method: 'POST' })
+  }
+
+  async pickupDeliveryOrder(orderId) {
+    return await this.call(`/delivery/courier/orders/${orderId}/pickup`, { method: 'POST' })
+  }
+
+  async startDeliveryOrder(orderId) {
+    return await this.call(`/delivery/courier/orders/${orderId}/en-route`, { method: 'POST' })
+  }
+
+  async deliverDeliveryOrder(orderId, proof = {}) {
+    return await this.call(`/delivery/courier/orders/${orderId}/delivered`, {
+      method: 'POST',
+      body: JSON.stringify(proof),
+    })
+  }
+
   async getPresence() {
     try {
       return await this.call('/drivers/presence')
@@ -1198,10 +1244,50 @@ class DriverAPI {
     return await this.call(`/drivers/rides/${rideId}/navigation`)
   }
 
-  async reportRideIssue(rideId, message, category = 'trip_issue') {
-    return await this.call(`/drivers/rides/${rideId}/support-ticket`, {
+  async fetchSafetyToolkit() {
+    return await this.call('/safety/toolkit')
+  }
+
+  async reportSafetyConcern(message, { rideId = null, metadata_json = null } = {}) {
+    const payload = {
+      category: 'safety_concern',
+      subject: 'Driver safety concern',
+      message,
+      contact_preference: 'no_outbound_contact',
+      metadata_json,
+    }
+    if (rideId != null && String(rideId).trim()) {
+      payload.ride_id = Number(rideId)
+    }
+    return await this.call('/support/cases', {
       method: 'POST',
-      body: JSON.stringify({ message, category }),
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async reportRideIssue(rideId, message, category = 'other') {
+    const allowed = new Set([
+      'lost_item',
+      'delivery_issue',
+      'pickup_issue',
+      'dropoff_issue',
+      'safety_concern',
+      'receipt_question',
+      'other',
+    ])
+    const legacyMap = { trip_issue: 'other' }
+    const normalized = allowed.has(category)
+      ? category
+      : legacyMap[category] || 'other'
+    return await this.call('/support/cases', {
+      method: 'POST',
+      body: JSON.stringify({
+        ride_id: Number(rideId),
+        category: normalized,
+        subject: 'Help with this job',
+        message,
+        contact_preference: 'in_app_only',
+      }),
     })
   }
 

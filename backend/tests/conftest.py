@@ -62,6 +62,7 @@ def _register_orm_models() -> None:
     import models.driver_app_settings  # noqa: F401
     import models.driver_idempotency_replay  # noqa: F401
     import routes.notifications  # noqa: F401
+    import models.delivery  # noqa: F401
 
 
 _register_orm_models()

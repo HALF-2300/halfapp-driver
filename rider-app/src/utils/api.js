@@ -91,6 +91,10 @@ export async function fetchRide(rideId) {
   return request(`/rides/${rideId}`)
 }
 
+export async function fetchPresentJob(rideId) {
+  return request(`/present/jobs/${rideId}`)
+}
+
 export async function cancelRide(rideId, reason) {
   return request(`/rides/${rideId}/cancel`, {
     method: 'POST',
@@ -234,6 +238,45 @@ export async function fetchRidePayment(rideId) {
 
 export async function fetchMyRides(limit = 30) {
   return request(`/rides/my-rides?limit=${limit}`)
+}
+
+export async function quoteDelivery(payload) {
+  return request('/delivery/quote', { method: 'POST', body: payload })
+}
+
+export async function createDeliveryOrder(payload) {
+  return request('/delivery/orders', { method: 'POST', body: payload })
+}
+
+export async function fetchDeliveryOrder(orderId) {
+  return request(`/delivery/orders/${orderId}`)
+}
+
+export async function fetchMyDeliveryOrders() {
+  return request('/delivery/orders/customer')
+}
+
+export async function cancelDeliveryOrder(orderId, reason) {
+  return request(`/delivery/orders/${orderId}/cancel`, {
+    method: 'POST',
+    body: reason ? { reason } : {},
+  })
+}
+
+export async function createSupportCase(body) {
+  return request('/support/cases', { method: 'POST', body })
+}
+
+export async function fetchSafetyToolkit() {
+  return request('/safety/toolkit')
+}
+
+export async function fetchNotifications() {
+  return request('/notifications/')
+}
+
+export async function markNotificationRead(deliveryId) {
+  return request(`/notifications/${deliveryId}/read`, { method: 'PATCH' })
 }
 
 import { riderStatusLabel, riderStatusStep } from './riderStatus.js'

@@ -55,6 +55,11 @@ import models.crl_cell_explanation  # noqa: F401
 import models.crl_time_pattern  # noqa: F401
 import models.payment  # noqa: F401
 import models.city_event  # noqa: F401
+import models.driver_document  # noqa: F401
+import models.notification_event  # noqa: F401
+import models.device_token  # noqa: F401
+import models.support_case  # noqa: F401
+import models.delivery  # noqa: F401
 import routes.notifications  # noqa: F401 — defines Notification model
 
 from routes.auth import router as auth_router
@@ -73,6 +78,7 @@ from routes.payments_webhooks import router as payments_webhooks_router
 from routes.stripe_connect import router as stripe_connect_router
 from routes.payments_stripe import router as payments_stripe_router
 from routes.payments_admin import router as payments_admin_router
+from routes.delivery import router as delivery_router
 
 run_migrations(engine)
 
@@ -81,6 +87,19 @@ app = FastAPI(title="HalfApp API", version="0.1.0")
 
 def _truthy_env(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "y", "on")
+
+
+def _dispatch_refresh_worker_enabled() -> bool:
+    if _truthy_env("HALFAPP_DISPATCH_REFRESH_WORKER_DISABLED"):
+        return False
+    if _truthy_env("HALFAPP_DISPATCH_REFRESH_WORKER_ENABLED"):
+        return True
+    # Auto-run when sequential cascade is active (RIDE-003).
+    return os.getenv("HALFAPP_OPEN_BOARD_DISPATCH", "").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+    }
 
 
 @app.on_event("startup")
@@ -102,6 +121,11 @@ async def _background_jobs_startup() -> None:
         from jobs.sil_crl_worker import sil_crl_worker_loop
 
         asyncio.create_task(sil_crl_worker_loop(SessionLocal))
+
+    if _dispatch_refresh_worker_enabled():
+        from jobs.dispatch_refresh_worker import dispatch_refresh_worker_loop
+
+        asyncio.create_task(dispatch_refresh_worker_loop(SessionLocal))
 
 app.add_middleware(
     CORSMiddleware,
@@ -135,6 +159,7 @@ app.include_router(payments_webhooks_router)
 app.include_router(stripe_connect_router)
 app.include_router(payments_stripe_router)
 app.include_router(payments_admin_router)
+app.include_router(delivery_router)
 
 
 # Dossier foundation spine — OFF unless HALFAPP_DOSSIER_SPINE_ENABLED (HALFAPP_DOSSIER_MOUNT_GATE_01).
